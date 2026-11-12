@@ -45,7 +45,8 @@
 
   app.buildRow = function (b) {
     return '<tr><td><a href="portal.html?b=' + encodeURIComponent(b.id) + '"><b>' + esc(b.name) + "</b></a></td><td>" + esc(b.project) + "</td>" +
-      "<td>" + mb(b.size) + "</td><td>" + when(b.publishedAt) + '<br><span class="dim">' + esc(b.by) + "</span></td><td>" + b.shares + "</td>" +
+      // a concept published again from Unity keeps its place, links and values: its version counts the publishes
+      "<td>" + mb(b.size) + "</td><td>" + when(b.publishedAt) + (b.revision > 1 ? ' <span class="dim">· version ' + b.revision + "</span>" : "") + '<br><span class="dim">' + esc(b.by) + "</span></td><td>" + b.shares + "</td>" +
       "<td>" + (b.mayChange ? '<button class="link" data-rename="' + esc(b.id) + '">Rename</button> · <button class="link" data-delete="' + esc(b.id) + '">Delete</button>' : "") + "</td></tr>";
   };
   app.wireBuildActions = function (main, builds) {
@@ -57,7 +58,7 @@
     render: async function (main) {
       var r = await PS.call("builds", {}, { retry: true });
       main.innerHTML = '<h2>Builds</h2><div class="card">' + (r.builds.length
-        ? "<table><thead><tr><th>Name</th><th>Project</th><th>Size</th><th>Published</th><th>Share links</th><th></th></tr></thead><tbody>" + r.builds.map(app.buildRow).join("") + "</tbody></table>"
+        ? "<table><thead><tr><th>Concept</th><th>Project</th><th>Size</th><th>Published</th><th>Share links</th><th></th></tr></thead><tbody>" + r.builds.map(app.buildRow).join("") + "</tbody></table>"
         : r.noTeam ? '<p class="dim">You aren\'t on a team yet. Ask your admin to add you to one, and your team\'s builds will show here.</p>'
           : '<p class="dim">Nothing published yet. Get PlaySpell from <a href="#downloads">Downloads</a>, then press <b>Publish</b> on its Build tab in Unity.</p>') + "</div>";
       app.wireBuildActions(main, r.builds);
