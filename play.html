@@ -15,8 +15,75 @@
 </style>
 </head>
 <body>
+<div id="playspell-splash" aria-hidden="true"><style>#playspell-splash{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;overflow:hidden;
+background:radial-gradient(circle at 50% 42%,#fffaf2 0,#fdeedc 55%,#f5dcc3 100%);transition:opacity .3s ease;font-size:19px;font-size:min(19px,5.4vw,6.5vh);-webkit-tap-highlight-color:transparent}
+#playspell-splash *{box-sizing:border-box}
+#playspell-splash .ps-stage{position:relative;width:17.5em;height:12em}
+#playspell-splash .ps-shadow{position:absolute;left:2.5em;top:9.7em;width:12.5em;height:1.2em;border-radius:50%;background:rgba(120,80,40,.16);transition:opacity .4s}
+#playspell-splash .ps-bar{position:absolute;left:1.25em;top:7.5em;width:15em;height:1.65em;transition:transform .6s cubic-bezier(.5,0,.85,.4);will-change:transform}
+#playspell-splash .ps-track{position:absolute;top:0;right:0;bottom:0;left:0;border:.22em solid #2d2a3e;border-radius:1em;background:#f6efdd;overflow:hidden}
+#playspell-splash .ps-fill{position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(#a6e57c,#62c24c);transform:translateX(-100%);will-change:transform;overflow:hidden}
+#playspell-splash .ps-stripes{position:absolute;top:0;bottom:0;left:-1.6em;right:0;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.32) 0,rgba(255,255,255,.32) .5em,transparent .5em,transparent 1em);animation:ps-stripes .8s linear infinite;will-change:transform}
+#playspell-splash .ps-nodes{position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(90deg,transparent 33%,rgba(45,42,62,.32) 33%,rgba(45,42,62,.32) 34%,transparent 34%,transparent 66%,rgba(45,42,62,.32) 66%,rgba(45,42,62,.32) 67%,transparent 67%)}
+#playspell-splash .ps-leaf{position:absolute;left:14.2em;top:-1.15em;width:2.1em;transform:rotate(-8deg)}
+#playspell-splash .ps-panda{position:absolute;left:3.6em;top:2.2em;width:10em;transition:transform .62s cubic-bezier(.55,0,.9,.45) .16s;will-change:transform}
+#playspell-splash .ps-breathe{transform-origin:50% 85%;animation:ps-breathe 2.6s ease-in-out infinite;will-change:transform}
+#playspell-splash .ps-panda-svg{display:block;width:100%;height:auto;overflow:visible}
+#playspell-splash .ps-awake{display:none}
+#playspell-splash .ps-z{position:absolute;font:800 1.15em/1 "Trebuchet MS","Segoe UI",system-ui,sans-serif;color:#7d89ab;opacity:0;animation:ps-z 2.4s ease-out infinite;will-change:transform,opacity}
+#playspell-splash .ps-z1{left:12.4em;top:2.3em;font-size:.95em}
+#playspell-splash .ps-z2{left:13.3em;top:1.5em;animation-delay:.8s}
+#playspell-splash .ps-z3{left:14.3em;top:.6em;font-size:1.4em;animation-delay:1.6s}
+#playspell-splash.ps-wake .ps-z{animation:none;opacity:0;transition:opacity .15s}
+#playspell-splash.ps-wake .ps-sleep{display:none}
+#playspell-splash.ps-wake .ps-awake{display:inline}
+#playspell-splash.ps-wake .ps-breathe{animation:ps-hop .28s ease-out forwards}
+#playspell-splash.ps-drop .ps-bar{transform:translate(.6em,85vh) rotate(10deg)}
+#playspell-splash.ps-drop .ps-panda{transform:translate(-1.2em,90vh) rotate(-38deg)}
+#playspell-splash.ps-drop .ps-shadow{opacity:0}
+#playspell-splash.ps-drop .ps-limbs{animation:ps-flail .18s ease-in-out infinite alternate;transform-origin:65px 80px}
+#playspell-splash.ps-fade{opacity:0;pointer-events:none}
+@keyframes ps-stripes{to{transform:translateX(1.414em)}}
+@keyframes ps-breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.015,1.045)}}
+@keyframes ps-z{0%{opacity:0;transform:translate(0,0) scale(.6)}20%{opacity:1}100%{opacity:0;transform:translate(1.1em,-2.3em) scale(1.15)}}
+@keyframes ps-hop{0%{transform:translateY(0) scale(1,1)}40%{transform:translateY(-1.3em) scale(.96,1.06)}100%{transform:translateY(-.8em) scale(1,1)}}
+@keyframes ps-flail{from{transform:rotate(-6deg)}to{transform:rotate(6deg)}}
+@media (prefers-reduced-motion:reduce){#playspell-splash .ps-breathe,#playspell-splash .ps-z,#playspell-splash .ps-stripes{animation:none}
+#playspell-splash.ps-drop .ps-bar,#playspell-splash.ps-drop .ps-panda{transform:none}}</style><div class="ps-stage">
+<div class="ps-shadow"></div>
+<div class="ps-bar"><div class="ps-track"><div class="ps-fill"><div class="ps-stripes"></div></div><div class="ps-nodes"></div></div><svg class="ps-leaf" viewBox="0 0 34 24" aria-hidden="true"><path d="M3 20C8 6 22 1 31 4C25 10 16 18 3 20Z" fill="#7ccc5c" stroke="#2d2a3e" stroke-width="2.2" stroke-linejoin="round"/><path d="M5 19C13 13 20 9 27 6" fill="none" stroke="#4f9e3a" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+<div class="ps-panda"><div class="ps-breathe"><svg class="ps-panda-svg" viewBox="0 0 160 110" aria-hidden="true">
+<circle cx="100" cy="28" r="10" fill="#2d2a3e"/><circle cx="146" cy="30" r="10" fill="#2d2a3e"/>
+<ellipse cx="70" cy="66" rx="48" ry="24" fill="#fff" stroke="#2d2a3e" stroke-width="3"/>
+<circle cx="21" cy="60" r="6" fill="#fff" stroke="#2d2a3e" stroke-width="2.5"/>
+<ellipse cx="38" cy="66" rx="14" ry="19" fill="#2d2a3e"/>
+<ellipse cx="97" cy="66" rx="14" ry="23" fill="#2d2a3e"/>
+<g class="ps-limbs">
+<ellipse cx="36" cy="88" rx="11" ry="15" fill="#2d2a3e" transform="rotate(12 36 88)"/>
+<ellipse cx="96" cy="91" rx="10.5" ry="15" fill="#2d2a3e" transform="rotate(-8 96 91)"/>
+<ellipse cx="34" cy="99" rx="6" ry="3.2" fill="#4a4660"/><ellipse cx="97" cy="102" rx="5.5" ry="3" fill="#4a4660"/>
+</g>
+<circle cx="122" cy="52" r="30" fill="#fff" stroke="#2d2a3e" stroke-width="3"/>
+<ellipse cx="111" cy="53" rx="9" ry="7" fill="#2d2a3e" transform="rotate(-20 111 53)"/>
+<ellipse cx="134" cy="53" rx="9" ry="7" fill="#2d2a3e" transform="rotate(20 134 53)"/>
+<g class="ps-sleep" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+<path d="M106 53q5 4 10 0"/><path d="M129 53q5 4 10 0"/>
+</g>
+<g class="ps-awake">
+<circle cx="111" cy="52" r="4.6" fill="#fff"/><circle cx="134" cy="52" r="4.6" fill="#fff"/>
+<circle cx="111.6" cy="52.8" r="2.7" fill="#2d2a3e"/><circle cx="133.4" cy="52.8" r="2.7" fill="#2d2a3e"/>
+<circle cx="112.6" cy="51.4" r="0.9" fill="#fff"/><circle cx="134.4" cy="51.4" r="0.9" fill="#fff"/>
+</g>
+<ellipse cx="122.5" cy="63" rx="4" ry="2.8" fill="#2d2a3e"/>
+<path class="ps-sleep" d="M117.5 67.5q2.5 3 5 0q2.5 3 5 0" fill="none" stroke="#2d2a3e" stroke-width="1.8" stroke-linecap="round"/>
+<ellipse class="ps-awake" cx="122.5" cy="70" rx="2.6" ry="3.3" fill="#2d2a3e"/>
+<ellipse cx="102" cy="64" rx="5" ry="3" fill="#ff9fb4" opacity=".7"/><ellipse cx="143" cy="64" rx="5" ry="3" fill="#ff9fb4" opacity=".7"/>
+</svg></div></div>
+<div class="ps-z ps-z1">z</div><div class="ps-z ps-z2">z</div><div class="ps-z ps-z3">Z</div>
+</div></div>
 <div id="msg">Loading the playable…</div>
 <script src="config.js"></script>
+<script src="splash.js"></script>
 <script src="play.js"></script>
 </body>
 </html>
