@@ -1,0 +1,1627 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://accounts.google.com/gsi/ data: blob:; frame-src 'self' about: blob: data: https://accounts.google.com/gsi/; img-src 'self' data: blob: https://*.googleusercontent.com; media-src data: blob:; font-src data: blob:; worker-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<link rel="stylesheet" href="gate.css">
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script src="live.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PlaySpell Portal</title>
+<style>
+  :root {
+    --bg:#f4f5f8; --panel:#ffffff; --sunken:#f0f2f6; --line:#e2e5ec; --line-strong:#cfd4de; --text:#1b2130; --dim:#6a7385;
+    --accent:#f2b705; --accent-text:#1b1400; --accent-soft:#fff5d1; --ok:#1f9d61; --warn:#c77700; --err:#d64545;
+    --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08); --device:#1d222c;
+  }
+  :root[data-theme="dark"] {
+    --bg:#0f1319; --panel:#171d26; --sunken:#11161d; --line:#263040; --line-strong:#344257; --text:#dbe4ee; --dim:#8696a8;
+    --accent:#ffc94a; --accent-text:#1b1400; --accent-soft:#3a2f10; --ok:#5fd39a; --warn:#ffb454; --err:#ff6b6b;
+    --shadow:none; --device:#2a3240;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; display:flex; flex-direction:column; }
+  button, select, input { font:inherit; color:var(--text); }
+  button, select { background:var(--panel); border:1px solid var(--line-strong); border-radius:7px; padding:7px 12px; cursor:pointer; }
+  button:hover:not(:disabled), select:hover { border-color:var(--dim); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-text); font-weight:600; }
+  button.ghost { background:transparent; border-color:transparent; }
+  button.small { padding:4px 9px; font-size:12px; }
+  input:not([type=checkbox]):not([type=color]) { background:var(--sunken); border:1px solid var(--line); border-radius:6px; padding:6px 8px; width:100%; }
+  input:focus, select:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+
+  /* top bar */
+  .top { display:flex; align-items:center; gap:14px; padding:10px 18px; background:var(--panel); border-bottom:1px solid var(--line); }
+  .brand { font-weight:700; font-size:17px; letter-spacing:.01em; display:flex; align-items:center; gap:8px; white-space:nowrap; }
+  .brand .mark { width:26px; height:26px; border-radius:7px; background:var(--accent); color:var(--accent-text); display:grid; place-items:center; font-size:15px; }
+  .brand span { color:var(--dim); font-weight:500; }
+  .project { min-width:0; border-left:1px solid var(--line); padding-left:14px; }
+  .project .title { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .project .sub { color:var(--dim); font-size:12px; }
+  .project .title a { margin-left:8px; font-size:12px; font-weight:500; color:var(--dim); }
+  .spacer { flex:1; }
+
+  /* layout */
+  .app { flex:1; display:flex; min-height:0; }
+  nav.side { width:200px; flex:none; background:var(--panel); border-right:1px solid var(--line); padding:12px 10px; display:flex; flex-direction:column; gap:2px; }
+  nav.side a { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; color:var(--text); text-decoration:none; cursor:pointer; font-weight:500; }
+  nav.side a svg { width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; opacity:.75; }
+  nav.side a:hover { background:var(--sunken); }
+  nav.side a.active { background:var(--accent-soft); color:var(--text); }
+  nav.side a.active svg { opacity:1; }
+  nav.side a .count { margin-left:auto; font-size:11px; color:var(--dim); }
+  .side-foot { margin-top:auto; color:var(--dim); font-size:11px; padding:8px 12px; }
+  main { flex:1; min-width:0; overflow:auto; padding:18px 22px; }
+  .tab { display:none; }
+  .tab.active { display:block; }
+  .tab-head { display:flex; align-items:baseline; gap:12px; margin:0 0 14px; flex-wrap:wrap; }
+  .tab-head h2 { margin:0; font-size:20px; }
+  .tab-head .hint { color:var(--dim); font-size:13px; }
+
+  .lang-tools { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; }
+  .lang-tools label, .lang-field { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--dim); }
+  .lang-pick { position:relative; }
+  .lang-pick > summary { list-style:none; cursor:pointer; background:var(--panel); border:1px solid var(--line-strong); border-radius:7px; padding:7px 12px; min-width:230px; max-width:340px; color:var(--text); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lang-pick > summary::-webkit-details-marker { display:none; }
+  .lang-pick > summary::before { content:"▾"; float:right; margin-left:10px; color:var(--dim); }
+  .lang-pick > summary:hover { border-color:var(--dim); }
+  .lang-pick-panel { position:absolute; z-index:5; top:calc(100% + 4px); left:0; width:min(580px, 90vw); background:var(--panel); border:1px solid var(--line-strong); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.28); padding:8px 10px 10px; }
+  .lang-pick-head { display:flex; gap:6px; align-items:center; padding:2px 2px 8px; border-bottom:1px solid var(--line); margin-bottom:6px; color:var(--dim); font-size:12px; }
+  .lang-pick-head .spacer { flex:1; }
+  .lang-pick-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:1px 10px; max-height:330px; overflow:auto; }
+  .lang-tools .lang-pick-list label { flex-direction:row; align-items:center; gap:8px; font-size:13px; color:var(--text); padding:4px 6px; border-radius:6px; cursor:pointer; }
+  .lang-pick-list label:hover { background:var(--sunken); }
+  .share-lang { margin-top:6px; font-size:12px; padding:3px 6px; }
+  .lang-notes { margin:12px 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--dim); }
+  .lang-wrap { overflow:auto; max-height:68vh; }
+  table.langs { border-collapse:separate; border-spacing:0; width:100%; }
+  table.langs th { position:sticky; top:0; z-index:1; background:var(--panel); text-align:left; padding:8px 10px; border-bottom:1px solid var(--line-strong); font-size:13px; white-space:nowrap; vertical-align:top; }
+  table.langs th small { display:block; color:var(--dim); font-weight:400; }
+  table.langs th .small { margin:4px 4px 0 0; }
+  table.langs td { padding:6px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.langs td.source { min-width:190px; max-width:320px; overflow-wrap:anywhere; white-space:pre-wrap; }
+  table.langs td.source button { margin-left:6px; padding:0 6px; }
+  table.langs textarea { display:block; width:100%; min-width:170px; font:inherit; color:var(--text); background:var(--sunken); border:1px solid var(--line); border-radius:6px; padding:5px 7px; resize:vertical; }
+  table.langs textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+  table.langs textarea.bad { border-color:var(--warn); }
+  .lang-add { display:flex; gap:8px; padding:10px 14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); }
+  .card > h3 { margin:0; padding:12px 14px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .card > .body { padding:12px 14px; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .toolbar label { color:var(--dim); font-size:12px; display:flex; align-items:center; gap:6px; }
+  .sep { width:1px; align-self:stretch; background:var(--line); margin:0 4px; }
+
+  /* preview */
+  .preview-grid { display:grid; grid-template-columns: minmax(0, 1fr) 340px; gap:18px; align-items:start; }
+  @media (max-width: 1100px) { .preview-grid, .pg-grid { grid-template-columns: 1fr !important; } }
+  .viewport { display:flex; justify-content:center; align-items:flex-start; width:100%; }
+  .device { background:#000; border:10px solid var(--device); border-radius:30px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.25); transform-origin: top center; }
+  .device iframe { display:block; border:0; background:#000; }
+  .checks { display:flex; gap:8px; flex-wrap:wrap; }
+  .pill { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:12px; background:var(--sunken); }
+  .pill.ok { color:var(--ok); border-color:currentColor; } .pill.err { color:var(--err); border-color:currentColor; } .pill.warn { color:var(--warn); border-color:currentColor; }
+  #log { height:420px; overflow:auto; font:12px/1.55 ui-monospace, Consolas, monospace; background:var(--sunken); border-radius:8px; padding:8px 10px; }
+  #log .cta { color:var(--ok); font-weight:600; } #log .error { color:var(--err); } #log .warning { color:var(--warn); } #log .event { color:#3b82c4; } #log .gameEnd { color:#9b5de5; }
+
+  /* playground */
+  .pg-grid { display:grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap:18px; align-items:start; }
+  .vlist { display:flex; flex-direction:column; gap:6px; }
+  .vitem { border:1px solid var(--line); border-radius:8px; padding:9px 11px; cursor:pointer; background:var(--panel); }
+  .vitem:hover { border-color:var(--line-strong); }
+  .vitem.active { border-color:var(--accent); background:var(--accent-soft); }
+  .vitem .name { font-weight:600; }
+  .vitem .meta { color:var(--dim); font-size:12px; }
+  .vactions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .section-title { margin:16px 0 6px; color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.07em; font-weight:600; }
+  .section-title:first-child { margin-top:0; }
+  .row { display:grid; grid-template-columns: minmax(0,1fr) 200px; gap:10px; align-items:center; padding:7px 8px; border-radius:7px; }
+  .row:hover { background:var(--sunken); }
+  .row label { font-size:13px; } .row small { display:block; color:var(--dim); font-size:11px; }
+  .row.changed label::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:7px; vertical-align:1px; }
+  .row input[type=checkbox] { justify-self:start; width:18px; height:18px; }
+  .row input[type=color] { width:48px; height:30px; border:1px solid var(--line); border-radius:6px; background:none; padding:2px; }
+  .row.wide { grid-template-columns: 170px minmax(0,1fr); }
+  details.vstore { margin:4px 0 8px; }
+  details.vstore summary { cursor:pointer; padding:7px 8px; font-size:13px; border-radius:7px; }
+  details.vstore summary:hover { background:var(--sunken); }
+  details.vstore summary span { color:var(--dim); font-size:12px; margin-left:6px; }
+  .links { display:grid; grid-template-columns: max-content minmax(0,1fr); gap:4px 12px; font-size:12px; margin:8px 8px 0; }
+  .links b { font-weight:600; } .links span { overflow-wrap:anywhere; color:var(--dim); } .links span.set { color:var(--text); }
+  .tuple { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:4px; }
+  .tuple input { padding:6px 4px !important; }
+  .notice { font-size:12px; color:var(--dim); margin:0 0 10px; }
+  .notice.warn { color:var(--warn); }
+  #pgFrameBox { display:flex; justify-content:center; }
+  #pgFrameBox .device { border-width:8px; border-radius:24px; }
+
+  /* tables (export, report) */
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); font-weight:600; background:var(--sunken); }
+  tr:last-child td { border-bottom:0; }
+  td.num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .bar { height:6px; background:var(--sunken); border-radius:3px; overflow:hidden; min-width:120px; margin-top:6px; }
+  .bar i { display:block; height:100%; }
+  .issue { font-size:12px; margin-top:3px; } .issue.error { color:var(--err); } .issue.warning { color:var(--warn); }
+  .status { font-weight:600; font-size:12px; } .status.ok { color:var(--ok); } .status.warning { color:var(--warn); } .status.error { color:var(--err); }
+  .export-grid { display:grid; grid-template-columns: 300px minmax(0, 1fr); gap:18px; align-items:start; }
+  @media (max-width: 1000px) { .export-grid { grid-template-columns: 1fr; } }
+  .check { display:flex; align-items:center; gap:9px; padding:7px 4px; }
+  .check span { margin-left:auto; color:var(--dim); font-size:12px; }
+  .progress { height:8px; background:var(--sunken); border-radius:4px; overflow:hidden; margin:14px 0 6px; }
+  .progress i { display:block; height:100%; width:0; background:var(--accent); transition:width .1s; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:12px; margin-bottom:18px; }
+  .stat { padding:12px 14px; }
+  .stat .k { color:var(--dim); font-size:12px; } .stat .v { font-size:20px; font-weight:600; margin-top:2px; }
+  .empty { color:var(--dim); padding:20px; text-align:center; }
+  code { font:12px ui-monospace, Consolas, monospace; background:var(--sunken); padding:1px 5px; border-radius:4px; }
+</style>
+<script>
+  // the theme before first paint: saved choice, else the system's
+  try { const t = localStorage.getItem("playspell-portal-theme"); document.documentElement.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch { }
+</script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><div class="mark">✦</div>PlaySpell <span>Portal</span></div>
+  <div class="project"><div class="title" id="title">Loading…</div><div class="sub" id="sub"></div></div>
+  <div class="spacer"></div>
+  <a class="ghost" id="allBuilds" href="./" style="display:none;padding:6px 10px;text-decoration:none;color:inherit;font-size:13px">All builds</a>
+  <button class="ghost" id="theme" title="Light / dark">◐</button>
+  <button class="primary" id="exportTop" disabled>Export</button>
+</header>
+<div class="app">
+  <nav class="side">
+    <a data-tab="preview" class="active"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Preview</a>
+    <a data-tab="playground"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Playground<span class="count" id="countVariations"></span></a>
+    <a data-tab="languages"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3.5 3 3.5 15 0 18M12 3c-3.5 3-3.5 15 0 18"/></svg>Languages<span class="count" id="countLanguages"></span></a>
+    <a data-tab="export"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Export</a>
+    <a data-tab="report"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Report<span class="count" id="countIssues"></span></a>
+    <div class="side-foot" id="saveState"></div>
+  </nav>
+  <main>
+    <!-- Preview -->
+    <section class="tab active" id="tab-preview">
+      <div class="tab-head"><h2>Preview</h2><span class="hint">The network's own file, with its ad container simulated.</span></div>
+      <div class="toolbar">
+        <select id="network" title="Network"></select>
+        <select id="variationPick" title="Variation"></select>
+        <div class="sep"></div>
+        <select id="device" title="Device">
+          <option value="375x667">iPhone SE</option>
+          <option value="393x852" selected>iPhone 15</option>
+          <option value="430x932">iPhone 15 Pro Max</option>
+          <option value="360x780">Galaxy S23</option>
+          <option value="412x915">Pixel 8</option>
+          <option value="820x1180">iPad</option>
+          <option value="1024x1366">iPad Pro</option>
+        </select>
+        <button id="rotate" title="Portrait / landscape">Rotate</button>
+        <select id="previewLanguage" title="Language the preview runs in"></select>
+        <div class="sep"></div>
+        <button id="reload">Restart</button>
+        <button id="mute">Mute</button>
+        <button id="hide">Hide ad</button>
+        <button id="download" title="This network's file, with this variation">Download</button>
+      </div>
+      <div class="preview-grid">
+        <div class="viewport" id="viewport"><div class="device" id="deviceFrame"><iframe id="frame" title="Playable preview" sandbox="allow-scripts"></iframe></div></div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="card"><h3>Checks</h3><div class="body"><div class="checks" id="checks"></div><ul class="notice" id="notes" style="padding-left:16px;margin:10px 0 0"></ul></div></div>
+          <div class="card"><h3>Events <button class="small" id="clearLog">Clear</button></h3><div class="body"><div id="log"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Playground -->
+    <section class="tab" id="tab-playground">
+      <div class="tab-head"><h2>Playground</h2><span class="hint">Variations of the fields marked <code>[PlaySpellField]</code> or <code>[LunaPlaygroundField]</code>, each exported as its own set of files.</span></div>
+      <div class="pg-grid">
+        <div class="card"><h3>Variations</h3><div class="body">
+          <div class="vlist" id="vlist"></div>
+          <div class="vactions">
+            <button class="small" id="newVariation">New</button>
+            <button class="small" id="duplicate">Duplicate</button>
+            <button class="small" id="rename">Rename</button>
+            <button class="small" id="delete">Delete</button>
+          </div>
+        </div></div>
+        <div class="card"><h3><span id="fieldsTitle">Fields</span><input id="search" placeholder="Search fields" style="width:200px;text-transform:none;letter-spacing:0"></h3><div class="body">
+          <div class="row" style="padding-top:0"><label>Language<small>Device language: each phone shows its own. Fix one for a campaign in one country.</small></label><select id="language"></select></div>
+          <details class="vstore" id="vStore"><summary>Store links for this variation<span id="vStoreState"></span></summary>
+            <div class="row wide"><label>App Store</label><input id="vStoreIos" spellcheck="false" autocomplete="off"></div>
+            <div class="row wide"><label>Google Play</label><input id="vStoreAndroid" spellcheck="false" autocomplete="off"></div>
+            <p class="notice" id="vStoreHint" style="margin:4px 8px 0">For a custom product page or store listing. Empty: the project's links (Export ▸ Store links).</p>
+          </details>
+          <p class="notice" id="variationHint"></p>
+          <div id="fields"><div class="empty">This build has no fields marked [PlaySpellField] or [LunaPlaygroundField].</div></div>
+          <div class="toolbar" style="margin:14px 0 0"><button id="resetFields">Back to Unity's values</button></div>
+        </div></div>
+        <div class="card"><h3>Live preview <button class="small primary" id="apply">Apply</button></h3><div class="body"><div id="pgFrameBox"><div class="device" id="pgDevice"><iframe id="pgFrame" title="Variation preview" sandbox="allow-scripts" width="300" height="560"></iframe></div></div></div></div>
+      </div>
+    </section>
+
+    <!-- Export -->
+    <section class="tab" id="tab-languages">
+      <div class="tab-head"><h2>Languages</h2><span class="hint">Tick the languages you want, then translate them here or press Download CSV to have them filled in. Each phone shows its own language; a text with no translation stays as it is in Unity.</span></div>
+      <div class="card"><div class="body lang-tools">
+        <label>Your game's texts are in<select id="langSource"></select></label>
+        <div class="lang-field">Languages to translate into
+          <details class="lang-pick" id="langPick">
+            <summary id="langPickSummary">Pick languages</summary>
+            <div class="lang-pick-panel">
+              <div class="lang-pick-head"><span id="langPickCount"></span><span class="spacer"></span><button class="small" id="langPickNone">Clear</button><button class="small primary" id="langPickDone">Done</button></div>
+              <div class="lang-pick-list" id="langPickList"></div>
+            </div>
+          </details>
+        </div>
+        <label>Search<input id="langSearch" placeholder="Search texts" style="width:190px"></label>
+        <button id="langCsvOut" title="A file with your game's texts and a column for each ticked language, to send to a translator">Download CSV</button>
+        <button id="langCsvIn" title="Read the translations back from that spreadsheet">Import CSV</button>
+        <input id="langCsvFile" type="file" accept=".csv,.tsv,.txt,text/csv" hidden>
+        <button id="langVariations" title="For a campaign in one country: one variation fixed to each language, so each gets its own files">One variation per language</button>
+      </div></div>
+      <ul class="lang-notes" id="langNotes"></ul>
+      <div class="card">
+        <div class="lang-wrap"><table class="langs" id="langTable"></table></div>
+        <div class="lang-add"><input id="langNewText" placeholder="A text the list is missing, such as Level {0} ({0} stands for a number)"><button id="langNewAdd">Add</button></div>
+      </div>
+    </section>
+
+    <section class="tab" id="tab-export">
+      <div class="tab-head"><h2>Export</h2><span class="hint">Every chosen variation for every chosen network, in one ZIP: <code>variation/network/file</code>. Upload each file as it is.</span></div>
+      <div class="card" id="storeCard" style="margin-bottom:18px"><h3>Store links</h3><div class="body">
+        <p class="notice" style="margin:0 0 6px">Where the install button goes. The portal puts these links in every file it previews, downloads and exports, and the next Unity build uses them too. Left empty, the link from PlaySpell Settings stays.</p>
+        <div class="row wide"><label>App Store<small>iPhone and iPad</small></label><input id="storeIos" spellcheck="false" autocomplete="off"></div>
+        <div class="row wide"><label>Google Play<small>Android, and the preview</small></label><input id="storeAndroid" spellcheck="false" autocomplete="off"></div>
+        <div class="links" id="storeLinks"></div>
+        <p class="notice" id="storeHint" style="margin:10px 8px 0"></p>
+      </div></div>
+      <div class="export-grid">
+        <div class="card"><h3>Variations <button class="small" id="allVariations">All</button></h3><div class="body" id="pickVariations"></div><p class="notice" id="exportLangNote" style="display:none;margin:0;padding:0 14px 12px"></p></div>
+        <div class="card"><h3>Networks <button class="small" id="allNetworks">All</button></h3>
+          <table><thead><tr><th style="width:36px"></th><th>Network</th><th>Format</th><th>Size</th><th>Status</th></tr></thead><tbody id="pickNetworks"></tbody></table>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px"><div class="body">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="flex:1"><div id="exportSummary" style="font-weight:600"></div><div class="notice" id="exportDetail" style="margin:2px 0 0"></div></div>
+          <button class="primary" id="exportGo">Export</button>
+        </div>
+        <div class="progress"><i id="exportProgress"></i></div>
+      </div></div>
+      <div class="card" id="shareCard" style="margin-top:18px;display:none"><h3>Share links</h3><div class="body">
+        <p class="notice" style="margin:0 0 8px">Anyone with a link can play this build on a phone or PC without signing in. They can't see anything else, and a link stops working as soon as you switch it off. It shows the variation's current values. To try a language on any computer or phone, pick it under the link: the link then ends in <code>?lang=</code> and a language code.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+          <label style="font-size:12px">Variation<br><select id="shareVariation"></select></label>
+          <label style="font-size:12px">Label<br><input id="shareLabel" placeholder="For the QA team" spellcheck="false"></label>
+          <button class="primary" id="shareMake">Make a link</button>
+        </div>
+        <table><thead><tr><th>Link</th><th>Variation</th><th style="width:60px">Plays</th><th style="width:270px"></th></tr></thead><tbody id="shareRows"></tbody></table>
+      </div></div>
+      <div class="card" id="publishCard" style="margin-top:18px;display:none"><h3>Publish</h3><div class="body">
+        <p class="notice" style="margin:0 0 8px">Uploads this build to your team's live portal, where it stays under its own name. Your token stays on this computer. A name already in use gets a number added.</p>
+        <div class="row wide"><label>Server</label><input id="liveServer" spellcheck="false" autocomplete="off" placeholder="http://localhost:8900"></div>
+        <div class="row wide"><label>Publish token<small>From your Account page there</small></label><input id="liveToken" type="password" spellcheck="false" autocomplete="off"></div>
+        <div class="row wide"><label>Build name</label><input id="liveName" spellcheck="false" autocomplete="off"></div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:8px"><button class="primary" id="liveGo">Publish</button><span class="notice" id="liveResult" style="margin:0"></span></div>
+      </div></div>
+      <div class="card" style="margin-top:18px"><h3>Check files <button class="small primary" id="checkGo">Check</button></h3><div class="body">
+        <p class="notice" style="margin:0 0 8px">Runs each ticked network's upload file (the first ticked variation) the way its ad container would: only that network's API, outside requests blocked. It can't judge the game itself, so also play it to the end on the Preview tab, then run the network's own test tool (docs/network-testing.md).</p>
+        <div id="playTest" style="margin-bottom:10px"></div>
+        <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+          <table style="flex:1;min-width:280px"><thead><tr><th>Network</th><th style="width:70px">Result</th><th>Findings</th></tr></thead><tbody id="checkRows"></tbody></table>
+          <iframe id="checkFrame" title="File being checked" sandbox="allow-scripts" width="180" height="320" style="position:fixed;right:16px;bottom:16px;z-index:50;border:1px solid var(--line);border-radius:6px;background:#000;box-shadow:var(--shadow);display:none"></iframe>
+        </div>
+      </div></div>
+    </section>
+
+    <!-- Report -->
+    <section class="tab" id="tab-report">
+      <div class="tab-head"><h2>Report</h2><span class="hint">What the build made, and what each network will think of it.</span></div>
+      <div class="stats" id="stats"></div>
+      <div class="card"><table><thead><tr><th>Network</th><th>Format</th><th>Size and limit</th><th>Status</th></tr></thead><tbody id="reportRows"></tbody></table></div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+// Served from the build folder (PlaySpellBuild/) by tools/portal-server.mjs (Open Portal in the PlaySpell window), which also
+// saves the variations to the project's PlaySpellVariations.json. Opened from any other server, the
+// variations stay in this browser.
+const state = {
+  report: null, info: null, fields: [], variations: [], current: 0, build: null, api: false, store: { ios: "", android: "" },
+  landscape: false, muted: false, hidden: false, seen: { cta: 0, gameEnd: 0, errors: 0 },
+};
+const $ = id => document.getElementById(id);
+const kb = n => n >= 1048576 ? (n / 1048576).toFixed(2) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+const LANGUAGES = [["", "Device language"], ["en", "English"], ["en-GB", "English (UK)"], ["fr", "French"], ["fr-CA", "French (Canada)"], ["de", "German"],
+  ["es", "Spanish"], ["es-419", "Spanish (Latin America)"], ["it", "Italian"], ["pt", "Portuguese"], ["pt-BR", "Portuguese (Brazil)"], ["ru", "Russian"], ["tr", "Turkish"],
+  ["ar", "Arabic"], ["he", "Hebrew"], ["hi", "Hindi"], ["bn", "Bengali"], ["ja", "Japanese"], ["ko", "Korean"],
+  ["zh-CN", "Chinese (Simplified)"], ["zh-TW", "Chinese (Traditional)"], ["nl", "Dutch"], ["pl", "Polish"], ["id", "Indonesian"], ["ms", "Malay"], ["fil", "Filipino"],
+  ["th", "Thai"], ["vi", "Vietnamese"], ["sv", "Swedish"], ["da", "Danish"], ["no", "Norwegian"], ["fi", "Finnish"], ["uk", "Ukrainian"], ["ro", "Romanian"], ["cs", "Czech"], ["hu", "Hungarian"], ["el", "Greek"]];
+const languageName = c => (LANGUAGES.find(l => l[0] === c) || [c, c])[1];
+
+// ---------------------------------------------------------------- theme and tabs
+
+$("theme").onclick = () => {
+  const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("playspell-portal-theme", t); } catch { }
+};
+
+let tab = "preview";
+function showTab(name) {
+  collectSeenTexts();
+  tab = name;
+  document.querySelectorAll("nav.side a").forEach(a => a.classList.toggle("active", a.dataset.tab === name));
+  document.querySelectorAll(".tab").forEach(s => s.classList.toggle("active", s.id === "tab-" + name));
+  // only the visible preview runs
+  if (name === "preview") preview(); else $("frame").srcdoc = "";
+  if (name === "playground") playgroundPreview(); else $("pgFrame").srcdoc = "";
+  if (name === "export") renderExport();
+  if (name === "languages") renderLanguages();
+  try { history.replaceState(null, "", "#" + name); } catch { }
+}
+document.querySelectorAll("nav.side a").forEach(a => a.onclick = () => showTab(a.dataset.tab));
+$("exportTop").onclick = () => showTab("export");
+
+// Ad SDK test doubles, injected at the top of the preview's <head>. They report to this page.
+const MOCKS = `<script>(function(){
+  function post(type, text){ try { parent.postMessage({ playspellPreview: true, type: type, text: String(text) }, "*"); } catch(e){} }
+  window.__playspellTexts = new Set();
+  var tooLong = new Set();
+  window.__previewLongText = function(t){ if (!tooLong.has(t)) { tooLong.add(t); post("warning", 'Too long for its box: "' + t + '"'); } };
+  var listeners = {};
+  function on(e, f){ (listeners[e] = listeners[e] || []).push(f); }
+  window.__previewFire = function(e, v){ (listeners[e] || []).forEach(function(f){ try { f(v); } catch(x){} }); };
+  var size = function(){ return { width: innerWidth, height: innerHeight }; };
+  var lastTap = -1e9, taps = 0;
+  addEventListener("pointerdown", function(){ lastTap = performance.now(); taps++; }, true);
+  addEventListener("pointerup", function(){ lastTap = performance.now(); }, true);
+  function cta(text){
+    post("cta", text);
+    if (performance.now() - lastTap > 1500) post("noTap", "The store opened without a tap: networks reject auto-redirects");
+    else if (taps <= 1) post("firstTap", "The store opened on the very first tap: AppLovin and Unity Ads want some play first");
+  }
+  window.mraid = { getVersion:function(){return "2.0";}, getState:function(){return "default";}, getPlacementType:function(){return "interstitial";},
+    isViewable:function(){return !window.__previewHidden;}, supports:function(){return false;},
+    addEventListener:function(e,f){ on("mraid:" + e, f); if (e === "ready") setTimeout(f, 0); }, removeEventListener:function(){},
+    open:function(u){ cta("mraid.open(" + (u || "") + ")"); }, close:function(){ post("event", "mraid.close()"); }, useCustomClose:function(){ post("warning", "mraid.useCustomClose()"); },
+    getScreenSize:size, getMaxSize:size, getCurrentPosition:function(){ return { x:0, y:0, width:innerWidth, height:innerHeight }; },
+    setOrientationProperties:function(){}, getOrientationProperties:function(){ return { allowOrientationChange:true, forceOrientation:"none" }; } };
+  window.dapi = { isReady:function(){return true;}, isViewable:function(){return !window.__previewHidden;}, getAudioVolume:function(){ return window.__previewMuted ? 0 : 1; },
+    addEventListener:function(e,f){ on("dapi:" + e, f); if (e === "ready") setTimeout(f, 0); }, removeEventListener:function(){},
+    openStoreUrl:function(){ cta("dapi.openStoreUrl()"); }, getScreenSize:size };
+  window.FbPlayableAd = { onCTAClick:function(){ cta("FbPlayableAd.onCTAClick()"); } };
+  window.ScPlayableAd = { onCTAClick:function(){ cta("ScPlayableAd.onCTAClick()"); } };
+  window.ExitApi = { exit:function(){ cta("ExitApi.exit()"); } };
+  window.openAppStore = function(){ cta("openAppStore()"); };
+  window.install = function(){ cta("install()"); };
+  var sentTexts = 0;
+  setInterval(function(){ var all = Array.from(window.__playspellTexts || []); if (all.length > sentTexts) { try { parent.postMessage({ playspellPreview: true, type: "texts", rows: all.slice(sentTexts) }, "*"); } catch(e){} sentTexts = all.length; } }, 700);
+  addEventListener("message", function(e){
+    var m = e.data;
+    if (e.source !== parent || !m || m.playspellBridge !== "lifecycle") return;
+    window.__previewHidden = !!m.hidden; window.__previewMuted = !!m.muted;
+    window.__previewFire("mraid:viewableChange", !m.hidden);
+    window.__previewFire("dapi:viewableChange", { isViewable: !m.hidden });
+    window.__previewFire("mraid:audioVolumeChange", m.muted ? 0 : 100);
+    window.__previewFire("dapi:audioVolumeChange", m.muted ? 0 : 1);
+    if (!window.mraid && window.PlaySpell) { window.PlaySpell.setPaused(!!m.hidden); window.PlaySpell.setMuted(!!m.muted); }
+  });
+  window.gameEnd = function(){ post("gameEnd", "gameEnd()"); };
+  window.gameReady = function(){ post("event", "gameReady()"); };
+  window.__previewCta = cta;
+  addEventListener("error", function(e){ post("error", e.message); });
+  addEventListener("unhandledrejection", function(e){ post("error", "unhandled: " + (e.reason && e.reason.message || e.reason)); });
+  addEventListener("playspell:event", function(e){ if (e.detail.name !== "cta" && e.detail.name !== "gameEnd") post("event", e.detail.name + " = " + e.detail.value); });
+  (function hook(){ if (window.PlaySpell && PlaySpell.onLog) PlaySpell.onLog(function(t, x){ if (t !== "log") post(t, x); }); else setTimeout(hook, 50); })();
+})();<\/script>`;
+
+function log(type, text) {
+  const d = document.createElement("div");
+  d.className = type;
+  d.textContent = `${(performance.now() / 1000).toFixed(1)}s  ${type === "cta" ? "CTA " : type === "gameEnd" ? "GAME END " : ""}${text}`;
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+$("clearLog").onclick = () => { $("log").innerHTML = ""; };
+
+addEventListener("message", e => {
+  if (e.data?.playspellPreview && e.data.type === "texts") {
+    if (e.source === $("frame").contentWindow || e.source === $("pgFrame").contentWindow)
+      for (const row of Array.isArray(e.data.rows) ? e.data.rows : []) if (typeof row === "string") state.seenTexts?.add(row);
+    return;
+  }
+  if (e.source !== $("frame").contentWindow) return;
+  const m = e.data === "download" ? { playspellPreview: true, type: "cta", text: "postMessage('download')" }
+    : e.data === "complete" ? { playspellPreview: true, type: "gameEnd", text: "postMessage('complete')" } : e.data;
+  if (!m || !m.playspellPreview) return;
+  if (m.type === "cta") state.seen.cta++;
+  if (m.type === "gameEnd") state.seen.gameEnd++;
+  if (m.type === "error") state.seen.errors++;
+  if (["cta", "gameEnd", "noTap", "firstTap", "error"].includes(m.type)) notePlay(m.type);
+  log(m.type === "noTap" ? "error" : m.type === "firstTap" ? "warning" : m.type, m.text);
+  renderChecks();
+});
+
+function renderChecks() {
+  const s = state.seen;
+  $("checks").innerHTML = `<span class="pill ${s.cta ? "ok" : ""}">CTA ${s.cta ? "fired ✓" : "not yet"}</span>
+    <span class="pill ${s.gameEnd ? "ok" : ""}">Game end ${s.gameEnd ? "fired ✓" : "not yet"}</span>
+    <span class="pill ${s.errors ? "err" : "ok"}">${s.errors} error(s)</span>`;
+}
+
+// ---------------------------------------------------------------- variations
+
+// A variation: { name, language, values: { fieldId: value } }. Variation 0 is Unity's own values.
+// Fields are matched by their path (stable across builds); older builds only have keys.
+const fieldId = f => f.path || f.key;
+const variation = () => state.variations[state.current];
+const isDefault = () => state.current === 0;
+
+// The build's field keys → values for a variation (what the runtime reads from __PLAYSPELL_FIELDS__).
+function overrides(v) {
+  const out = {};
+  for (const f of state.fields) if (fieldId(f) in v.values) out[f.key] = v.values[fieldId(f)];
+  return out;
+}
+const stale = v => Object.keys(v.values).filter(id => !state.fields.some(f => fieldId(f) === id));
+
+// Saved as {store, variations}: the portal's store links and the variations (older saves are a bare list).
+const storeKey = () => "playspell-portal-variations:" + (state.report?.settings.title || "");
+async function loadVariations() {
+  let saved = null;
+  try {
+    const r = await fetch("api/variations", { cache: "no-store" });
+    if (r.ok) { saved = await r.json(); state.api = true; }
+  } catch { /* a plain file server: no API */ }
+  if (!state.api) { try { saved = JSON.parse(localStorage.getItem(storeKey()) || "null"); } catch { saved = null; } }
+  const list = Array.isArray(saved) ? saved : saved?.variations;
+  state.store = { ios: saved?.store?.ios || "", android: saved?.store?.android || "" };
+  state.savedPicks = saved?.picks || null;
+  state.variations = [{ name: "Unity values", language: "", values: {} }, ...(Array.isArray(list) ? list : [])];
+  loadTranslations(saved?.translations);
+}
+
+let saveTimer = null;
+function saveVariations() {
+  clearTimeout(saveTimer);
+  $("saveState").textContent = "Saving…";
+  saveTimer = setTimeout(async () => {
+    const data = { store: state.store, picks: state.savedPicks, variations: state.variations.slice(1), translations: state.translations };
+    if (state.api) {
+      try {
+        const r = await fetch("api/variations", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+        $("saveState").textContent = r.ok ? savedText() : "Couldn't save the variations";
+        return;
+      } catch { $("saveState").textContent = "Couldn't save the variations"; return; }
+    }
+    try { localStorage.setItem(storeKey(), JSON.stringify(data)); $("saveState").textContent = "Variations saved in this browser"; }
+    catch { $("saveState").textContent = "Couldn't save the variations"; }
+  }, 400);
+}
+
+const savedText = () => state.live ? "Saved on the server for your team" : "Variations saved to PlaySpellVariations.json";
+
+function uniqueName(base) {
+  const names = new Set(state.variations.map(v => v.name));
+  if (!names.has(base)) return base;
+  for (let i = 2; ; i++) if (!names.has(`${base} ${i}`)) return `${base} ${i}`;
+}
+
+// Which language a variation shows: its own, or each phone's when there are translations.
+const variationLanguage = v => (v.language ? languageName(v.language) : state.translations && translationTable() ? "phone's language" : "");
+
+function variationMeta(v, i) {
+  const language = variationLanguage(v);
+  if (i === 0) return "As set in Unity" + (language ? " · " + language : "");
+  const n = Object.keys(v.values).length;
+  return `${n} change${n === 1 ? "" : "s"}${language ? " · " + language : ""}${ownLinks(v) ? " · own store links" : ""}`;
+}
+
+// ---------------------------------------------------------------- languages
+
+// Saved beside the variations: { source, languages: [codes], texts: { text: { code: translation } } }.
+// The text of a row is the whole text as the game sets it; {0}, {1}... stand for numbers. The tables have no
+// prototype, as their keys are whatever the game says.
+const dict = o => Object.assign(Object.create(null), o);
+const LANGUAGE_CODE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+const baseLanguage = c => String(c).toLowerCase().split("-")[0];
+
+function loadTranslations(t) {
+  const texts = dict();
+  for (const [text, row] of Object.entries(t?.texts ?? {})) texts[text] = dict(row);
+  state.translations = { source: t?.source || state.report?.languages?.source || "en", languages: Array.isArray(t?.languages) ? [...t.languages] : [], texts };
+  state.seenTexts ??= new Set();
+}
+
+// What goes in a file; a variation fixed to one language only carries that one. tools/live/languages.mjs has the same for the server.
+function translationTable(lock = "") {
+  const t = state.translations, languages = {};
+  for (const language of t.languages) {
+    if (lock && baseLanguage(language) !== baseLanguage(lock)) continue;
+    const rows = Object.entries(t.texts).filter(([, row]) => row[language]).map(([text, row]) => [text, row[language]]);
+    if (rows.length) languages[language] = rows;
+  }
+  return Object.keys(languages).length ? { source: t.source, languages } : null;
+}
+
+// What the game showed while it played in a preview, numbers as {0}. Nothing is saved until it's translated.
+// The preview frames send them as they show up (they run sandboxed, so the page can't read them directly).
+function collectSeenTexts() {}
+
+const languageRows = () => [...new Set([...(state.report?.languages?.texts ?? []), ...state.seenTexts, ...Object.keys(state.translations.texts)])];
+const marksOf = s => (s.match(/\{\d+\}|<[^>]*>/g) ?? []).sort().join("|");
+const cellProblem = (text, value) => (value && marksOf(text) !== marksOf(value) ? "Keep the same {0} and tags as the original" : "");
+const allLanguages = () => [...LANGUAGES, ...state.translations.languages.filter(c => !LANGUAGES.some(l => l[0] === c)).map(c => [c, c])];
+const translatedCount = c => languageRows().filter(text => state.translations.texts[text]?.[c]).length;
+
+function renderLanguageCounts() {
+  const rows = languageRows().length;
+  for (const el of document.querySelectorAll("[data-count]")) el.textContent = `${translatedCount(el.dataset.count)} of ${rows}`;
+  $("countLanguages").textContent = state.translations.languages.length || "";
+}
+
+function renderLanguageNotes() {
+  const info = state.report?.languages, notes = [], t = state.translations;
+  if (!info) notes.push("This build came from an older PlaySpell, which can't show translations. Update the package and build again.");
+  const table = translationTable();
+  if (table) {
+    const bytes = new Blob([jsString(table)]).size;
+    notes.push(`These translations add ${bytes < 1024 ? bytes + " bytes" : (bytes / 1024).toFixed(1) + " KB"} to each file.`);
+  }
+  // Letters the last build's font doesn't have show in the phone's own font. A letter the build never saw might
+  // only be missing because the font keeps just the letters a build needs.
+  const fonts = new Set([...(info?.fontCharacters ?? "")].map(c => c.codePointAt(0)));
+  const builtWith = new Set(Object.values(info?.table?.languages ?? {}).flatMap(rows => rows.flatMap(([, to]) => [...to])));
+  const phoneFont = [], unbuilt = [];
+  if (fonts.size) for (const c of t.languages) {
+    const missing = new Set();
+    for (const row of Object.values(t.texts)) for (const ch of (row[c] ?? "").replace(/<[^>]*>|\{\d+\}/g, "")) if (/\p{L}/u.test(ch) && !fonts.has(ch.codePointAt(0))) missing.add(ch);
+    const fresh = [...missing].filter(ch => !builtWith.has(ch));
+    if (fresh.length) unbuilt.push(`${languageName(c)} (${fresh.slice(0, 4).join(" ")})`);
+    else if (missing.size) phoneFont.push(languageName(c));
+  }
+  if (phoneFont.length) notes.push(`${phoneFont.join(", ")}: some letters aren't in your game's font, so they show in the phone's own font. That adds nothing to the file size.`);
+  if (unbuilt.length) notes.push(`Build again in Unity to use your game's font for new letters in ${unbuilt.join(", ")}, if the font has them. Until then they show in the phone's own font.`);
+  const missing = languagesWithoutVariation();
+  if (missing.length) notes.push(`${namesOf(missing)} ${missing.length === 1 ? "has" : "have"} no variation of ${missing.length === 1 ? "its" : "their"} own yet. Press One variation per language to add ${missing.length === 1 ? "it" : "them"}.`);
+  if (state.langMessage) notes.unshift(state.langMessage);
+  $("langNotes").innerHTML = notes.map(n => `<li>${esc(n)}</li>`).join("");
+}
+
+function renderLanguages() {
+  const t = state.translations;
+  collectSeenTexts();
+  $("langSource").innerHTML = allLanguages().slice(1).map(([c, n]) => `<option value="${esc(c)}">${esc(n)}</option>`).join("");
+  $("langSource").value = t.source;
+  renderLanguagePick();
+  const built = new Set(state.report?.languages?.texts ?? []), search = $("langSearch").value.trim().toLowerCase();
+  state.langRows = languageRows();
+  const shown = state.langRows.map((text, i) => ({ text, i })).filter(({ text }) => !search || text.toLowerCase().includes(search) || Object.values(t.texts[text] ?? {}).some(v => v.toLowerCase().includes(search)));
+  const head = `<tr><th>Text in your game<small>${esc(languageName(t.source))}</small></th>${t.languages.map(c => `<th>${esc(languageName(c))}<small data-count="${esc(c)}"></small><button class="small" data-preview="${esc(c)}">Preview</button><button class="small" data-remove="${esc(c)}" title="Stop using this language. Its translations are kept if you add it back.">Remove</button></th>`).join("")}</tr>`;
+  const body = shown.map(({ text, i }) => `<tr><td class="source">${esc(text)}${built.has(text) ? "" : `<button class="small ghost" data-forget="${i}" title="Remove this text">×</button>`}</td>${t.languages.map(c => {
+    const value = t.texts[text]?.[c] ?? "", problem = cellProblem(text, value);
+    return `<td><textarea rows="${Math.max(1, (value || text).split("\n").length)}" dir="auto" lang="${esc(c)}" spellcheck="false" data-row="${i}" data-language="${esc(c)}"${problem ? ` class="bad" title="${esc(problem)}"` : ""}>${esc(value)}</textarea></td>`;
+  }).join("")}</tr>`).join("");
+  $("langTable").innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+  renderLanguageCounts();
+  renderLanguageNotes();
+}
+
+// The languages in use, in the list's order: the columns, the CSV and the files all follow it.
+function renderLanguagePick() {
+  const t = state.translations, on = new Set(t.languages);
+  $("langPickList").innerHTML = allLanguages().slice(1).filter(([c]) => c !== t.source)
+    .map(([c, n]) => `<label><input type="checkbox" value="${esc(c)}"${on.has(c) ? " checked" : ""}>${esc(n)}</label>`).join("");
+  const names = t.languages.map(languageName);
+  $("langPickSummary").textContent = !names.length ? "Pick languages" : names.length > 3 ? `${names.slice(0, 3).join(", ")} +${names.length - 3} more` : names.join(", ");
+  $("langPickCount").textContent = `${names.length} ticked`;
+}
+$("langPickList").addEventListener("change", e => {
+  const t = state.translations, c = e.target.value;
+  if (e.target.checked) { if (!t.languages.includes(c)) t.languages.push(c); }
+  else t.languages = t.languages.filter(x => x !== c);
+  languagesChanged();
+});
+$("langPickNone").onclick = () => { state.translations.languages = []; languagesChanged(); };
+$("langPickDone").onclick = () => { $("langPick").open = false; };
+document.addEventListener("click", e => { if ($("langPick").open && !$("langPick").contains(e.target)) $("langPick").open = false; });
+
+function languagesChanged(message = "") {
+  const order = allLanguages().map(l => l[0]);
+  state.translations.languages.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  state.langMessage = message;
+  saveVariations();
+  renderLanguages();
+  renderPreviewLanguages();
+}
+
+$("langSource").onchange = () => {
+  const t = state.translations;
+  t.source = $("langSource").value;
+  t.languages = t.languages.filter(c => c !== t.source);
+  languagesChanged();
+};
+$("langSearch").oninput = renderLanguages;
+$("langTable").addEventListener("input", e => {
+  const el = e.target;
+  if (el.tagName !== "TEXTAREA") return;
+  const t = state.translations, text = state.langRows[+el.dataset.row], c = el.dataset.language;
+  const row = (t.texts[text] ??= dict());
+  if (el.value) row[c] = el.value;
+  else {
+    delete row[c];
+    if (!Object.keys(row).length) delete t.texts[text];
+  }
+  const problem = cellProblem(text, el.value);
+  el.classList.toggle("bad", !!problem);
+  el.title = problem;
+  renderLanguageCounts();
+  renderLanguageNotes();
+  saveVariations();
+});
+$("langTable").addEventListener("click", e => {
+  const d = e.target.dataset, t = state.translations;
+  if (d.preview) {
+    renderPreviewLanguages();
+    $("previewLanguage").value = d.preview;
+    showTab("preview");
+  } else if (d.remove) {
+    t.languages = t.languages.filter(c => c !== d.remove);
+    languagesChanged();
+  } else if (d.forget !== undefined) {
+    const text = state.langRows[+d.forget];
+    delete t.texts[text];
+    state.seenTexts.delete(text);
+    languagesChanged();
+  }
+});
+$("langNewAdd").onclick = () => {
+  const text = $("langNewText").value.trim();
+  if (!text) return;
+  state.translations.texts[text] ??= dict();
+  $("langNewText").value = "";
+  languagesChanged();
+};
+
+// A spreadsheet for a translator: the first column is the game's text, then a column per language. The mark
+// at the start makes Excel read it as UTF-8, so Arabic and Chinese survive.
+const csvCell = s => (/[",;\t\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+$("langCsvOut").onclick = e => {
+  if (!state.translations.languages.length) {
+    state.langMessage = "Tick the languages to translate into first, under Languages to translate into.";
+    renderLanguageNotes();
+    e.stopPropagation(); // the click would otherwise close the list again
+    $("langPick").open = true;
+    return;
+  }
+  const t = state.translations, rows = [["Text", ...t.languages], ...languageRows().map(text => [text, ...t.languages.map(c => t.texts[text]?.[c] ?? "")])];
+  const csv = String.fromCharCode(0xfeff) + rows.map(r => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+  const name = (state.report?.settings.title || "playable").replace(/[^A-Za-z0-9_-]+/g, "_");
+  save(new Blob([csv], { type: "text/csv;charset=utf-8" }), `${name}-languages.csv`);
+};
+
+function parseCsv(text) {
+  text = text.replace(/^\ufeff/, "");
+  // Excel saves with semicolons in many countries; whichever the header line has
+  const line = text.split(/\r?\n/, 1)[0], count = c => line.split(c).length;
+  const sep = [",", ";", "\t"].sort((a, b) => count(b) - count(a))[0];
+  const rows = [];
+  let row = [], cell = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch !== '"') cell += ch;
+      else if (text[i + 1] === '"') { cell += '"'; i++; }
+      else quoted = false;
+    } else if (ch === '"' && !cell) quoted = true;
+    else if (ch === sep) { row.push(cell); cell = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+function languageFromHeader(cell) {
+  const s = cell.trim().toLowerCase(), known = allLanguages().slice(1).find(([c, n]) => c.toLowerCase() === s || n.toLowerCase() === s);
+  if (known) return known[0];
+  return LANGUAGE_CODE.test(cell.trim()) ? cell.trim() : null;
+}
+
+$("langCsvIn").onclick = () => $("langCsvFile").click();
+$("langCsvFile").onchange = async () => {
+  const file = $("langCsvFile").files[0];
+  $("langCsvFile").value = "";
+  if (!file) return;
+  const t = state.translations, [header, ...rows] = parseCsv(await file.text());
+  const columns = (header ?? []).slice(1).map(languageFromHeader), skipped = (header ?? []).slice(1).filter((_, i) => !columns[i] || columns[i] === t.source);
+  let count = 0;
+  for (const c of columns) if (c && c !== t.source && !t.languages.includes(c)) t.languages.push(c);
+  for (const r of rows) {
+    const text = (r[0] ?? "").replace(/\r\n/g, "\n").trim();
+    if (!text) continue;
+    columns.forEach((c, i) => {
+      const value = (r[i + 1] ?? "").replace(/\r\n/g, "\n").trim();
+      if (!c || c === t.source || !value) return;
+      (t.texts[text] ??= dict())[c] = value;
+      count++;
+    });
+  }
+  languagesChanged(`Imported ${count} translation${count === 1 ? "" : "s"}.${skipped.length ? ` Skipped these columns: ${skipped.join(", ")}.` : ""}`);
+};
+
+// For campaigns aimed at one country: a variation fixed to each language, with its own files on the Export tab.
+function addLanguageVariations() {
+  const t = state.translations;
+  let made = 0;
+  for (const c of [t.source, ...t.languages]) {
+    if (state.variations.some(v => v.language === c)) continue;
+    state.variations.push({ name: uniqueName(languageName(c)), language: c, values: {} });
+    made++;
+  }
+  renderVariations();
+  return made;
+}
+$("langVariations").onclick = () => {
+  const made = addLanguageVariations();
+  languagesChanged(made ? `Made ${made} variation${made === 1 ? "" : "s"}, each with its own files on the Export tab.` : "Each language already has a variation.");
+};
+
+// Once some language has a variation of its own, the languages added after it that don't have one yet.
+function languagesWithoutVariation() {
+  const t = state.translations;
+  if (!t || !state.variations.some(v => v.language)) return [];
+  return [t.source, ...t.languages].filter(c => !state.variations.some(v => v.language === c));
+}
+const namesOf = codes => {
+  const names = codes.map(languageName);
+  return names.length <= 4 ? names.join(", ").replace(/, ([^,]*)$/, " and $1") : `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+};
+
+function renderPreviewLanguages() {
+  const sel = $("previewLanguage"), was = sel.value || "*", ours = state.translations.languages;
+  const options = [["*", "Language: as exported"], ...ours.map(c => [c, languageName(c) + " ✓"]), ...allLanguages().slice(1).filter(([c]) => !ours.includes(c))];
+  sel.innerHTML = options.map(([c, n]) => `<option value="${esc(c)}">${esc(n)}</option>`).join("");
+  sel.value = options.some(o => o[0] === was) ? was : "*";
+}
+
+// ---------------------------------------------------------------- store links
+
+// The links the install button opens, in order: the variation's own, the portal's, then the build's
+// (PlaySpell Settings). Only these networks open the store themselves; the others take it from the campaign.
+const STORE_NETWORKS = ["applovin", "unity", "ironsource", "adcolony"];
+const builtStore = () => ({ ios: state.report?.settings.ios || "", android: state.report?.settings.android || "" });
+const ownLinks = v => !!(v.store?.ios || v.store?.android);
+function storeFor(v) {
+  const b = builtStore();
+  return { ios: v?.store?.ios || state.store.ios || b.ios, android: v?.store?.android || state.store.android || b.android };
+}
+const linkProblem = url => url && !/^(https?|itms-apps|market):\/\//i.test(url) ? "should start with https://" : "";
+// a link as a JavaScript string that's safe inside an inline <script>
+const jsString = s => JSON.stringify(s).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, c => c === "\u2028" ? "\\u2028" : "\\u2029");
+
+// The build's findings, with the store-link one following the links the portal now puts in.
+const storeIssue = i => i.code === "store" || /^No store (URL|link)/.test(i.text);
+function issuesOf(b) {
+  const list = b.issues.filter(i => !storeIssue(i)), s = storeFor(null);
+  if (!s.ios && !s.android && STORE_NETWORKS.includes(b.network))
+    list.push({ level: "warning", code: "store", text: "No store link: the install button has nowhere to go. Add them under Export ▸ Store links." });
+  return list;
+}
+
+function renderStore() {
+  const b = builtStore(), s = storeFor(null);
+  $("storeIos").placeholder = b.ios || "https://apps.apple.com/app/id…";
+  $("storeAndroid").placeholder = b.android || "https://play.google.com/store/apps/details?id=…";
+  // what the files open on each platform: its own link, else the other platform's
+  const opens = (name, own, other, mine, otherName) => {
+    const url = own || other;
+    const from = !url ? "" : !own ? ` · the ${otherName} link, as this one is empty` : mine ? "" : " · from PlaySpell Settings";
+    return `<b>${name}</b><span class="${url ? "set" : ""}">${url ? esc(url) + from : "nothing: no link"}${linkProblem(url) ? ` <em style="color:var(--warn)">— ${linkProblem(url)}</em>` : ""}</span>`;
+  };
+  $("storeLinks").innerHTML = opens("Install on iOS opens", s.ios, s.android, !!state.store.ios, "Google Play")
+    + opens("Install on Android opens", s.android, s.ios, !!state.store.android, "App Store");
+  const uses = state.report.builds.filter(x => STORE_NETWORKS.includes(x.network)).map(x => x.label);
+  const others = state.report.builds.filter(x => !STORE_NETWORKS.includes(x.network)).map(x => x.label);
+  $("storeHint").textContent = (uses.length ? `The files for ${uses.join(", ")} open these links themselves. ` : "")
+    + (others.length ? `${others.join(", ")} take the store link from the campaign you set up on the network. ` : "")
+    + "The preview runs as a desktop browser, so it opens the Google Play link when there is one.";
+  // the findings that depend on the links
+  const problems = state.report.builds.filter(x => statusOf(x) === "error").length;
+  $("countIssues").textContent = problems ? `${problems} ✕` : "";
+  renderReport();
+}
+for (const [id, key] of [["storeIos", "ios"], ["storeAndroid", "android"]]) {
+  $(id).oninput = () => {
+    state.store[key] = $(id).value.trim();
+    saveVariations();
+    renderStore();
+    if (picked.networks) renderExport();
+  };
+}
+for (const [id, key] of [["vStoreIos", "ios"], ["vStoreAndroid", "android"]]) {
+  $(id).oninput = () => {
+    const v = variation();
+    v.store = { ...v.store, [key]: $(id).value.trim() };
+    if (!v.store.ios && !v.store.android) delete v.store;
+    saveVariations();
+    renderVariationStore();
+    renderVariationList();
+  };
+}
+function renderVariationStore() {
+  const v = variation(), s = storeFor(null);
+  $("vStoreIos").value = v.store?.ios || "";
+  $("vStoreAndroid").value = v.store?.android || "";
+  $("vStoreIos").placeholder = s.ios || "the project's App Store link";
+  $("vStoreAndroid").placeholder = s.android || "the project's Google Play link";
+  $("vStoreIos").disabled = $("vStoreAndroid").disabled = isDefault();
+  $("vStoreState").textContent = ownLinks(v) ? "(own links)" : "(the project's)";
+  const bad = [v.store?.ios, v.store?.android].map(linkProblem).find(Boolean);
+  $("vStoreHint").className = "notice" + (bad ? " warn" : "");
+  $("vStoreHint").textContent = bad ? `A link ${bad}.` : isDefault()
+    ? "Unity values use the project's links (Export ▸ Store links). Make a variation to give it its own."
+    : "For a custom product page or store listing. Empty: the project's links (Export ▸ Store links).";
+}
+
+function renderVariations() {
+  $("vlist").innerHTML = state.variations.map((v, i) =>
+    `<div class="vitem${i === state.current ? " active" : ""}" data-i="${i}"><div class="name">${esc(v.name)}</div><div class="meta">${variationMeta(v, i)}</div></div>`).join("");
+  $("vlist").querySelectorAll(".vitem").forEach(el => el.onclick = () => selectVariation(Number(el.dataset.i)));
+  $("variationPick").innerHTML = state.variations.map((v, i) => `<option value="${i}">${esc(v.name)}</option>`).join("");
+  $("variationPick").value = String(state.current);
+  $("countVariations").textContent = state.variations.length > 1 ? String(state.variations.length - 1) : "";
+  for (const id of ["rename", "delete", "resetFields"]) $(id).disabled = isDefault();
+  $("language").innerHTML = allLanguages().map(([c, n]) => `<option value="${esc(c)}">${esc(n)}</option>`).join("");
+  $("language").value = variation().language || "";
+  $("language").disabled = isDefault();
+  $("fieldsTitle").textContent = variation().name;
+  const old = stale(variation());
+  $("variationHint").className = "notice" + (old.length ? " warn" : "");
+  $("variationHint").innerHTML = isDefault()
+    ? "These are the values set in Unity. Make a variation (New) to change them for an export."
+    : old.length ? `${old.length} saved value(s) match no field of this build (renamed or removed). <button class="small" id="dropStale">Remove them</button>` : "";
+  if (old.length && !isDefault()) $("dropStale").onclick = () => { for (const id of old) delete variation().values[id]; saveVariations(); renderVariations(); };
+  renderVariationStore();
+  renderFields();
+}
+
+function selectVariation(i) {
+  state.current = i;
+  renderVariations();
+  $("vStore").open = ownLinks(variation());
+  if (tab === "preview") preview();
+  if (tab === "playground") playgroundPreview();
+}
+$("variationPick").onchange = () => selectVariation(Number($("variationPick").value));
+$("newVariation").onclick = () => {
+  state.variations.push({ name: uniqueName("Variation"), language: "", values: {} });
+  saveVariations(); selectVariation(state.variations.length - 1);
+};
+$("duplicate").onclick = () => {
+  const v = variation();
+  state.variations.push({ name: uniqueName(isDefault() ? "Variation" : v.name + " copy"), language: v.language || "", values: structuredClone(v.values), ...(v.store ? { store: { ...v.store } } : {}) });
+  saveVariations(); selectVariation(state.variations.length - 1);
+};
+$("rename").onclick = () => {
+  const name = prompt("Variation name", variation().name)?.trim();
+  if (!name || name === variation().name) return;
+  variation().name = uniqueName(name);
+  saveVariations(); renderVariations();
+};
+$("delete").onclick = () => {
+  if (!confirm(`Delete the variation "${variation().name}"?`)) return;
+  state.variations.splice(state.current, 1);
+  saveVariations(); selectVariation(0);
+};
+$("language").onchange = () => { variation().language = $("language").value; saveVariations(); renderVariations(); };
+$("resetFields").onclick = () => {
+  if (isDefault() || !Object.keys(variation().values).length) return;
+  variation().values = {};
+  saveVariations(); renderVariations(); playgroundPreview();
+};
+$("search").oninput = renderFields;
+
+function renderFields() {
+  const box = $("fields");
+  if (!state.fields.length) return;
+  const q = $("search").value.trim().toLowerCase();
+  box.innerHTML = "";
+  const sorted = [...state.fields].sort((a, b) => (a.section || "").localeCompare(b.section || "") || a.order - b.order)
+    .filter(f => !q || f.title.toLowerCase().includes(q) || (f.object || "").toLowerCase().includes(q) || (f.section || "").toLowerCase().includes(q));
+  if (!sorted.length) { box.innerHTML = `<div class="empty">No field matches “${esc(q)}”.</div>`; return; }
+  let section = null;
+  for (const f of sorted) {
+    if ((f.section || "") !== section) {
+      section = f.section || "";
+      const h = document.createElement("div");
+      h.className = "section-title";
+      h.textContent = section || "Fields";
+      box.appendChild(h);
+    }
+    const row = document.createElement("div");
+    row.className = "row" + (fieldId(f) in variation().values ? " changed" : "");
+    row.innerHTML = `<label>${esc(f.title)}<small>${esc(f.object)}</small></label>`;
+    const el = input(f, row);
+    for (const x of el.matches("input, select") ? [el] : el.querySelectorAll("input, select")) x.disabled = isDefault();
+    row.appendChild(el);
+    box.appendChild(row);
+  }
+}
+
+// Inputs per Unity field type; values are kept in the exported JSON form.
+const TUPLES = ["$v2", "$v3", "$v4", "$v2i", "$v3i", "$rect"];
+function input(f, row) {
+  const values = variation().values, id = fieldId(f);
+  const cur = id in values ? values[id] : f.value;
+  const set = v => {
+    values[id] = v;
+    if (!row.classList.contains("changed")) { row.classList.add("changed"); renderVariationList(); }
+    saveVariations();
+  };
+  let el;
+  if (f.options) {
+    el = document.createElement("select");
+    f.options.forEach((name, i) => el.appendChild(new Option(name, f.values[i])));
+    el.value = cur;
+    el.onchange = () => set(Number(el.value));
+  } else if (f.type === "Boolean") {
+    el = document.createElement("input");
+    el.type = "checkbox";
+    el.checked = !!cur;
+    el.onchange = () => set(el.checked);
+  } else if (f.type === "Color" && cur && cur.$c) {
+    el = document.createElement("input");
+    el.type = "color";
+    const c = cur.$c, hex = x => Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, "0");
+    el.value = "#" + hex(c[0]) + hex(c[1]) + hex(c[2]);
+    el.oninput = () => { const v = el.value; set({ $c: [parseInt(v.slice(1, 3), 16) / 255, parseInt(v.slice(3, 5), 16) / 255, parseInt(v.slice(5, 7), 16) / 255, c[3]] }); };
+  } else if (f.type === "Integer" || f.type === "Float") {
+    el = document.createElement("input");
+    el.type = "number";
+    el.step = f.type === "Integer" ? "1" : "any";
+    el.value = cur;
+    el.oninput = () => set(f.type === "Integer" ? parseInt(el.value || "0", 10) : parseFloat(el.value || "0"));
+  } else if (f.type === "String") {
+    el = document.createElement("input");
+    el.value = cur;
+    el.oninput = () => set(el.value);
+  } else if (cur && typeof cur === "object" && TUPLES.some(t => Array.isArray(cur[t]))) {
+    // vectors and rects: one number box per component
+    const tag = TUPLES.find(t => Array.isArray(cur[t])), nums = [...cur[tag]], ints = tag.endsWith("i");
+    el = document.createElement("div");
+    el.className = "tuple";
+    nums.forEach((n, i) => {
+      const x = document.createElement("input");
+      x.type = "number";
+      x.step = ints ? "1" : "any";
+      x.value = n;
+      x.title = (tag === "$rect" ? ["x", "y", "width", "height"] : ["x", "y", "z", "w"])[i];
+      x.oninput = () => { nums[i] = ints ? parseInt(x.value || "0", 10) : parseFloat(x.value || "0"); set({ [tag]: [...nums] }); };
+      el.appendChild(x);
+    });
+  } else {
+    el = document.createElement("input");
+    el.value = JSON.stringify(cur);
+    el.onchange = () => { try { set(JSON.parse(el.value)); el.style.borderColor = ""; } catch { el.style.borderColor = "var(--err)"; } };
+  }
+  return el;
+}
+// the variation list's change counts, without redrawing the fields being edited
+function renderVariationList() {
+  document.querySelectorAll("#vlist .vitem").forEach(el => { const i = Number(el.dataset.i); el.querySelector(".meta").textContent = variationMeta(state.variations[i], i); });
+}
+
+// ---------------------------------------------------------------- builds and preview
+
+// A network build's HTML with a variation's values (and language) put in, and its store links in the
+// network bridge; for the preview also the SDK test doubles, without the real SDK scripts.
+async function htmlFor(build, v, { forPreview = false, language } = {}) {
+  const html = await (await fetch(build.source || build.file, { cache: "no-store" })).text();
+  const values = overrides(v), lang = language ?? v.language, links = storeFor(v);
+  let inject = "";
+  if (Object.keys(values).length) inject += `<script>window.__PLAYSPELL_FIELDS__ = ${JSON.stringify(values).replace(/</g, "\\u003c")};<\/script>`;
+  if (lang) inject += `<script>window.__PLAYSPELL_LANGUAGE__ = ${JSON.stringify(lang)};<\/script>`;
+  const table = translationTable(lang || "");
+  if (table) inject += `<script>window.__PLAYSPELL_TRANSLATIONS__ = ${jsString(table)};<\/script>`;
+  // the file carries the translations from when it was built; these are the current ones
+  let out = html.replace(/<script>window\.__PLAYSPELL_TRANSLATIONS__ = [\s\S]*?<\/script>/, "").replace(/var IOS = "(?:[^"\\]|\\.)*", AND = "(?:[^"\\]|\\.)*";/, () => `var IOS = ${jsString(links.ios)}, AND = ${jsString(links.android)};`);
+  out = out.replace(/<head>/i, m => m + (forPreview ? MOCKS : "") + inject);
+  if (forPreview) out = out.replace(/<script src="(https?:\/\/[^"]+|mraid\.js)"><\/script>/g, "<!-- $1 skipped in preview -->");
+  return out;
+}
+
+// The upload-ready file: HTML, or a ZIP with the network's extra files.
+async function fileFor(build, v) {
+  const name = build.file.split("/").pop(), links = storeFor(v), built = builtStore();
+  // the build's own file when nothing would change in it
+  const sameTexts = JSON.stringify(translationTable(v.language || "")) === JSON.stringify(state.report.languages?.table ?? null);
+  if (!Object.keys(overrides(v)).length && !v.language && sameTexts && links.ios === built.ios && links.android === built.android)
+    return { name, blob: await (await fetch(build.file, { cache: "no-store" })).blob() };
+  const html = await htmlFor(build, v);
+  if (!build.zip) return { name, blob: new Blob([html], { type: "text/html" }) };
+  const extra = await Promise.all((build.zip.extra || []).map(async p => ({ path: p.split("/").pop(), data: new Uint8Array(await (await fetch(p)).arrayBuffer()) })));
+  return { name, blob: await zip([{ path: build.zip.entry, data: html }, ...extra], { deflate: true }) };
+}
+
+const limitOf = b => b.limit || ({ facebook: 2 }[b.network] || 5) * 1048576;
+const statusOf = b => { const list = issuesOf(b); return list.some(i => i.level === "error") ? "error" : list.length ? "warning" : "ok"; };
+
+async function load() {
+  try {
+    state.report = await (await fetch("networks/report.json", { cache: "no-store" })).json();
+  } catch {
+    $("title").textContent = "No build yet";
+    $("sub").textContent = "Build in Unity first (PlaySpell window, Ctrl+H), then open the portal again.";
+    return;
+  }
+  try { state.fields = await (await fetch("networks/fields.json", { cache: "no-store" })).json(); } catch { state.fields = []; }
+  try { state.info = await (await fetch("build.json", { cache: "no-store" })).json(); } catch { state.info = null; }
+  await loadVariations();
+  const r = state.report;
+  $("title").textContent = r.settings.title;
+  $("sub").textContent = `Built ${new Date(r.built).toLocaleString()} · ${r.builds.length} networks · ${state.fields.length} field(s) · ${r.settings.orientation}`;
+  $("saveState").textContent = state.api ? savedText() : "Variations saved in this browser";
+  await startLive();
+  renderPreviewLanguages();
+  $("countLanguages").textContent = state.translations.languages.length || "";
+  if (r.settings.orientation === "landscape") state.landscape = true;
+  $("network").innerHTML = r.builds.map((b, i) => `<option value="${i}">${esc(b.label)}</option>`).join("");
+  state.build = r.builds[0] || null;
+  $("exportTop").disabled = !r.builds.length;
+  $("storeIos").value = state.store.ios;
+  $("storeAndroid").value = state.store.android;
+  renderVariations();
+  renderStore(); // also the report and the issue count
+  renderChecks();
+  showTab(["preview", "playground", "languages", "export", "report"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "preview");
+}
+
+$("network").onchange = () => { state.build = state.report.builds[Number($("network").value)]; preview(); };
+
+// Big devices are scaled down to fit the window; the playable still sees the device's size.
+function fit() {
+  const f = $("frame"), box = $("viewport"), frame = $("deviceFrame");
+  const w = Number(f.width) + 20, h = Number(f.height) + 20;
+  const scale = Math.min(1, box.clientWidth / w, (innerHeight - box.getBoundingClientRect().top - 30) / h);
+  frame.style.transform = scale < 1 ? `scale(${scale})` : "";
+  box.style.height = h * scale + "px";
+}
+addEventListener("resize", () => { if (tab === "preview") fit(); });
+
+async function preview() {
+  if (!state.build || tab !== "preview") return;
+  state.seen = { cta: 0, gameEnd: 0, errors: 0 };
+  $("log").innerHTML = "";
+  $("notes").innerHTML = (state.build.notes || []).map(n => `<li>${esc(n)}</li>`).join("");
+  const v = variation(), lang = $("previewLanguage").value;
+  log("event", `loading ${state.build.label} · ${v.name}${lang !== "*" ? " · " + lang : ""}…`);
+  const [w, h] = $("device").value.split("x").map(Number);
+  const f = $("frame");
+  f.width = state.landscape ? h : w;
+  f.height = state.landscape ? w : h;
+  fit();
+  f.srcdoc = await htmlFor(state.build, v, { forPreview: true, language: lang === "*" ? undefined : lang });
+  state.muted = false;
+  state.hidden = false;
+  $("mute").textContent = "Mute";
+  $("hide").textContent = "Hide ad";
+  renderChecks();
+}
+
+// The Playground's small preview of the variation being edited (Apply reloads it).
+async function playgroundPreview() {
+  if (!state.build || tab !== "playground") return;
+  const f = $("pgFrame");
+  f.width = state.landscape ? 520 : 300;
+  f.height = state.landscape ? 300 : 560;
+  f.srcdoc = await htmlFor(state.build, variation(), { forPreview: true });
+}
+$("apply").onclick = playgroundPreview;
+
+// Pause/mute through the network's own lifecycle events, as the real SDK would.
+function lifecycle() {
+  const w = $("frame").contentWindow;
+  if (!w) return;
+  // the frame is sandboxed: its test doubles apply this (see MOCKS)
+  w.postMessage({ playspellBridge: "lifecycle", hidden: state.hidden, muted: state.muted }, "*");
+  w.postMessage(state.hidden ? "ad-event-pause" : "ad-event-resume", "*");
+}
+$("mute").onclick = () => { state.muted = !state.muted; $("mute").textContent = state.muted ? "Unmute" : "Mute"; lifecycle(); log("event", state.muted ? "muted" : "unmuted"); };
+$("hide").onclick = () => { state.hidden = !state.hidden; $("hide").textContent = state.hidden ? "Show ad" : "Hide ad"; lifecycle(); log("event", state.hidden ? "ad hidden" : "ad visible"); };
+$("rotate").onclick = () => { state.landscape = !state.landscape; preview(); };
+$("device").onchange = preview;
+$("previewLanguage").onchange = preview;
+$("reload").onclick = preview;
+
+// ---------------------------------------------------------------- report
+
+function renderReport() {
+  const r = state.report, info = state.info;
+  const smallest = Math.min(...r.builds.map(b => b.size));
+  const stats = [
+    ["Networks", r.builds.length],
+    ["Ready to upload", r.builds.filter(b => statusOf(b) !== "error").length],
+    ["Smallest file", kb(smallest)],
+    ["Fields", state.fields.length],
+  ];
+  if (info?.packed) stats.push(["Code (compressed)", kb((info.packed.runtime || 0) + (info.packed.game || 0) + (info.packed.physics3d || 0) + (info.packed.physics2d || 0))]);
+  if (info?.packed?.total) stats.push(["Everything (compressed)", kb(info.packed.total)]);
+  $("stats").innerHTML = stats.map(([k, v]) => `<div class="card stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  $("reportRows").innerHTML = r.builds.map(b => {
+    const limit = limitOf(b), st = statusOf(b);
+    return `<tr><td><b>${esc(b.label)}</b>${(b.notes || []).map(n => `<div class="notice" style="margin:3px 0 0">${esc(n)}</div>`).join("")}</td>
+      <td>${b.zip ? "ZIP" : "HTML"}</td>
+      <td class="num">${kb(b.size)} of ${kb(limit)}<div class="bar"><i style="width:${Math.min(100, b.size / limit * 100).toFixed(1)}%;background:${b.size > limit ? "var(--err)" : b.size > limit * 0.8 ? "var(--warn)" : "var(--ok)"}"></i></div></td>
+      <td><span class="status ${st}">${st === "ok" ? "✓ Ready" : st === "warning" ? "! Check" : "✕ Fix first"}</span>${issuesOf(b).map(i => `<div class="issue ${i.level}">${esc(i.text)}</div>`).join("")}</td></tr>`;
+  }).join("");
+}
+
+// ---------------------------------------------------------------- downloads and export
+
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+const deflateRaw = async data => new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
+// A ZIP. With deflate (network ZIPs, whose base64 page shrinks back by a quarter) entries are compressed
+// when that helps; the export's outer ZIP stores its already-compressed files as they are.
+async function zip(files, { deflate = false } = {}) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.path);
+    const data = typeof f.data === "string" ? enc.encode(f.data) : f.data instanceof Blob ? new Uint8Array(await f.data.arrayBuffer()) : f.data;
+    const crc = crc32(data);
+    let body = data, method = 0;
+    if (deflate && typeof CompressionStream === "function") {
+      const packed = await deflateRaw(data);
+      if (packed.length < data.length) { body = packed; method = 8; }
+    }
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, method, true);
+    h.setUint32(14, crc, true); h.setUint32(18, body.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, body);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, method, true);
+    c.setUint32(16, crc, true); c.setUint32(20, body.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+    central.push(new Uint8Array(c.buffer), name);
+    offset += 30 + name.length + body.length;
+  }
+  const size = central.reduce((n, b) => n + b.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/zip" });
+}
+function save(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+$("download").onclick = async () => {
+  if (!state.build) return;
+  const { name, blob } = await fileFor(state.build, variation());
+  save(blob, name);
+  log("event", `downloaded ${name} (${variation().name})`);
+};
+
+// which variations and networks the export takes (kept while the page is open)
+const picked = { variations: null, networks: null };
+function renderExport() {
+  if (!state.report) return;
+  // the ticks come back as they were left, by name: a new variation or network starts ticked
+  const had = state.savedPicks;
+  if (!picked.variations || picked.variations.length !== state.variations.length)
+    picked.variations = state.variations.map((v, i) => had?.variations ? !(had.off?.variations || []).includes(v.name) : i > 0 || state.variations.length === 1);
+  if (!picked.networks) picked.networks = state.report.builds.map(b => !(had?.off?.networks || []).includes(b.network));
+  $("pickVariations").innerHTML = state.variations.map((v, i) =>
+    `<label class="check"><input type="checkbox" data-v="${i}" ${picked.variations[i] ? "checked" : ""}>${esc(v.name)}<span>${i ? variationMeta(v, i) : ["Unity", variationLanguage(v)].filter(Boolean).join(" · ")}</span></label>`).join("");
+  const missing = languagesWithoutVariation(), note = $("exportLangNote");
+  note.style.display = missing.length ? "" : "none";
+  note.innerHTML = missing.length ? `${esc(namesOf(missing))} ${missing.length === 1 ? "has" : "have"} no variation of ${missing.length === 1 ? "its" : "their"} own, so ${missing.length === 1 ? "it's" : "they're"} only in the ones marked phone's language. <button class="small" id="exportAddLanguages">Add ${missing.length === 1 ? "it" : "them"}</button>` : "";
+  if (missing.length) $("exportAddLanguages").onclick = () => { addLanguageVariations(); saveVariations(); renderExport(); };
+  $("pickNetworks").innerHTML = state.report.builds.map((b, i) => {
+    const st = statusOf(b);
+    return `<tr><td><input type="checkbox" data-n="${i}" ${picked.networks[i] ? "checked" : ""}></td><td>${esc(b.label)}</td><td>${b.zip ? "ZIP" : "HTML"}</td>
+      <td class="num"${b.size > limitOf(b) ? ' style="color:var(--err)"' : ""}>${kb(b.size)}</td><td><span class="status ${st}">${st === "ok" ? "✓" : st === "warning" ? "!" : "✕"}</span></td></tr>`;
+  }).join("");
+  renderShareChoices();
+  document.querySelectorAll("#pickVariations input").forEach(el => el.onchange = () => { picked.variations[el.dataset.v] = el.checked; savePicks(); exportSummary(); });
+  document.querySelectorAll("#pickNetworks input").forEach(el => el.onchange = () => { picked.networks[el.dataset.n] = el.checked; savePicks(); exportSummary(); });
+  $("exportProgress").style.width = "0";
+  exportSummary();
+}
+$("allVariations").onclick = () => { const all = !picked.variations.every(Boolean); picked.variations = picked.variations.map(() => all); savePicks(); renderExport(); };
+$("allNetworks").onclick = () => { const all = !picked.networks.every(Boolean); picked.networks = picked.networks.map(() => all); savePicks(); renderExport(); };
+function savePicks() {
+  state.savedPicks = { variations: true, off: {
+    variations: state.variations.filter((v, i) => !picked.variations[i]).map(v => v.name),
+    networks: state.report.builds.filter((b, i) => !picked.networks[i]).map(b => b.network),
+  } };
+  saveVariations();
+}
+function exportSummary() {
+  const vs = picked.variations.filter(Boolean).length, ns = state.report.builds.filter((b, i) => picked.networks[i]);
+  const bytes = ns.reduce((n, b) => n + b.size, 0) * vs;
+  $("exportSummary").textContent = vs && ns.length ? `${vs * ns.length} file(s), about ${kb(bytes)}` : "Choose at least one variation and one network";
+  $("exportDetail").textContent = vs && ns.length ? `${vs} variation(s) × ${ns.length} network(s) → ${slug(state.report.settings.title)}_playables.zip` : "";
+  $("exportGo").disabled = !vs || !ns.length;
+}
+
+const slug = s => s.replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "variation";
+$("exportGo").onclick = async () => {
+  const vs = state.variations.filter((v, i) => picked.variations[i]);
+  const ns = state.report.builds.filter((b, i) => picked.networks[i]);
+  const files = [], total = vs.length * ns.length;
+  $("exportGo").disabled = true;
+  try {
+    for (const v of vs) for (const b of ns) {
+      const { name, blob } = await fileFor(b, v);
+      files.push({ path: `${slug(v.name)}/${b.network}/${name}`, data: blob });
+      $("exportProgress").style.width = (files.length / total * 100).toFixed(1) + "%";
+      $("exportDetail").textContent = `${files.length} of ${total}: ${v.name} · ${b.label}`;
+    }
+    const out = slug(state.report.settings.title) + "_playables.zip";
+    save(await zip(files), out);
+    $("exportSummary").textContent = `Saved ${out}`;
+    $("exportDetail").textContent = `${files.length} file(s), ready to upload.`;
+  } catch (e) {
+    $("exportSummary").textContent = "Export failed";
+    $("exportDetail").textContent = e.message;
+  } finally {
+    $("exportGo").disabled = false;
+  }
+};
+
+// ---------------------------------------------------------------- the live portal
+
+// On the live portal this page shows share links; on a computer it offers Publish.
+async function startLive() {
+  let ping = null;
+  try { ping = await (await fetch("api/ping", { cache: "no-store" })).json(); } catch { /* a plain file server */ }
+  state.live = !!ping?.live;
+  if (state.live) {
+    $("allBuilds").style.display = "";
+    $("shareCard").style.display = "";
+    $("saveState").textContent = savedText();
+    $("title").textContent = ping.name;
+    if (ping.canRename) {
+      const a = document.createElement("a");
+      a.href = "rename?back=portal";
+      a.id = "renameBuild";
+      a.textContent = "Rename";
+      $("title").append(a);
+    }
+    document.title = ping.name + " · PlaySpell";
+    await loadShares();
+  } else if (state.api) {
+    $("publishCard").style.display = "";
+    try {
+      const l = await (await fetch("api/live", { cache: "no-store" })).json();
+      $("liveServer").value = l.server;
+      $("liveToken").placeholder = l.hasToken ? "Saved on this computer" : "";
+    } catch { /* an older server */ }
+    $("liveName").value = state.report.settings.title;
+  }
+}
+
+$("liveGo").onclick = async () => {
+  const say = (text, kind = "") => { $("liveResult").textContent = text; $("liveResult").className = "notice " + kind; };
+  $("liveGo").disabled = true;
+  say("Publishing…");
+  try {
+    const post = async (route, body) => {
+      const r = await fetch(route, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      return j;
+    };
+    await post("api/live", { server: $("liveServer").value, token: $("liveToken").value });
+    $("liveToken").value = "";
+    $("liveToken").placeholder = "Saved on this computer";
+    const made = await post("api/publish", { name: $("liveName").value });
+    $("liveResult").className = "notice";
+    $("liveResult").innerHTML = `Published as <b>${esc(made.name)}</b>: <a href="${esc(made.url)}" target="_blank" rel="noopener">open it</a>`;
+  } catch (e) { say(e.message, "warn"); }
+  finally { $("liveGo").disabled = false; }
+};
+
+function renderShareChoices() {
+  if (!state.live) return;
+  const was = $("shareVariation").value;
+  $("shareVariation").innerHTML = state.variations.map(v => `<option>${esc(v.name)}</option>`).join("");
+  if (state.variations.some(v => v.name === was)) $("shareVariation").value = was;
+  loadShares().catch(() => {}); // languages translated since show up under the links
+}
+async function loadShares() {
+  const { shares } = await (await fetch("api/shares", { cache: "no-store" })).json();
+  // A link that follows the phone's language can also be opened in a chosen one (?lang=fr), on any computer or phone.
+  const table = translationTable(), languages = table ? [state.translations.source, ...Object.keys(table.languages)] : [];
+  const choose = s => (state.variations.find(v => v.name === s.variation)?.language || !languages.length ? "" :
+    `<br><select class="share-lang" data-lang="${esc(s.token)}" title="Opens the link in this language, whatever the phone's language is">
+      <option value="">Phone's language</option>${languages.map(c => `<option value="${esc(c)}">${esc(languageName(c))}</option>`).join("")}</select>`);
+  $("shareRows").innerHTML = shares.length ? shares.sort((a, b) => b.createdAt - a.createdAt).map(s => `<tr>
+    <td>${s.label ? `<b>${esc(s.label)}</b><br>` : ""}<code data-link="${esc(s.token)}" data-url="${esc(s.url)}" style="word-break:break-all;font-size:12px;${s.on ? "" : "opacity:.5;text-decoration:line-through"}">${esc(s.url)}</code>${choose(s)}</td>
+    <td>${esc(s.variation)}</td><td class="num">${s.plays || 0}</td>
+    <td><button class="small" data-copy="${esc(s.token)}">Copy</button> <button class="small" data-open="${esc(s.token)}">Open</button> <button class="small" data-toggle="${esc(s.token)}" data-on="${s.on ? 1 : 0}">${s.on ? "Switch off" : "Switch on"}</button> <button class="small" data-drop="${esc(s.token)}">Delete</button></td></tr>`).join("")
+    : `<tr><td colspan="4" class="notice">No links yet.</td></tr>`;
+  const linkOf = token => document.querySelector(`[data-link="${token}"]`).textContent;
+  document.querySelectorAll("[data-lang]").forEach(sel => sel.onchange = () => {
+    const code = document.querySelector(`[data-link="${sel.dataset.lang}"]`);
+    code.textContent = code.dataset.url + (sel.value ? "?lang=" + encodeURIComponent(sel.value) : "");
+  });
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+    try { await navigator.clipboard.writeText(linkOf(b.dataset.copy)); b.textContent = "Copied"; }
+    catch { b.textContent = "Select the link above"; }
+    setTimeout(() => { b.textContent = "Copy"; }, 1500);
+  });
+  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => window.open(linkOf(b.dataset.open), "_blank", "noopener"));
+  const change = async (token, method, body) => { await fetch("api/shares/" + token, { method, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) }); loadShares(); };
+  document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => change(b.dataset.toggle, "PATCH", { on: b.dataset.on !== "1" }));
+  document.querySelectorAll("[data-drop]").forEach(b => b.onclick = () => change(b.dataset.drop, "DELETE"));
+}
+$("shareMake").onclick = async () => {
+  await fetch("api/shares", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variation: $("shareVariation").value, label: $("shareLabel").value }) });
+  $("shareLabel").value = "";
+  loadShares();
+};
+
+// ---------------------------------------------------------------- check files
+
+// What each network's own pages ask of the file (links in docs/network-testing.md). kind: the ad container.
+const STEM = () => state.report.builds.find(b => b.network === "mintegral")?.file.split("/").pop().replace(/\.zip$/, "") ?? "";
+const SPEC = {
+  applovin: { kind: "mraid", cta: "mraid.open", html: /\.html$/, has: ['<script src="mraid.js"><\/script>'] },
+  unity: { kind: "mraid", cta: "mraid.open", html: /^index\.html$/, not: ["mraid.js"] },
+  ironsource: { kind: "dapi", cta: "dapi.openStoreUrl", html: /\.html$/, not: ["mraid.js"] },
+  facebook: { kind: "plain", api: "FbPlayableAd.onCTAClick", html: /\.html$/, not: ["mraid.js"], max: 2 },
+  moloco: { kind: "plain", api: "FbPlayableAd.onCTAClick", html: /\.html?$/, not: ["mraid.js"] },
+  google: { kind: "plain", api: "ExitApi.exit", files: () => ["index.html"], not: ["mraid.js"], has: ['<meta name="ad.orientation"', '<script src="https://tpc.googlesyndication.com/pagead/gadgets/html5/api/exitapi.js"><\/script>'], head: ["exitapi.js"] },
+  mintegral: { kind: "mintegral", cta: "install", files: () => [STEM() + "/" + STEM() + ".html"], not: ["mraid.js"], end: "gameEnd", name: /^[A-Za-z0-9_]+$/ },
+  tiktok: { kind: "plain", api: "openAppStore", files: () => ["index.html", "config.json"], not: ["mraid.js"], has: ['"playable_orientation"', "playable-sdk.js"], body: ["playable-sdk.js"] },
+  vungle: { kind: "vungle", cta: "download", files: () => ["index.html"], not: ["mraid.js"], has: ["parent.postMessage('download','*')", "parent.postMessage('complete','*')"], end: "complete" },
+  adcolony: { kind: "mraid", cta: "mraid.open", html: /\.html$/, has: ['<script src="mraid.js"><\/script>'] },
+  snapchat: { kind: "plain", api: "ScPlayableAd.onCTAClick", files: () => ["index.html", "config.json"], not: ["mraid.js"], has: ['"playable_orientation"'] },
+};
+
+async function readZip(blob) {
+  const buf = new Uint8Array(await blob.arrayBuffer()), view = new DataView(buf.buffer), files = {};
+  let e = buf.length - 22;
+  while (e >= 0 && view.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("not a ZIP");
+  let p = view.getUint32(e + 16, true);
+  for (let i = 0, n = view.getUint16(e + 10, true); i < n; i++) {
+    const method = view.getUint16(p + 10, true), size = view.getUint32(p + 20, true), nameLength = view.getUint16(p + 28, true), off = view.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nameLength));
+    const start = off + 30 + view.getUint16(off + 26, true) + view.getUint16(off + 28, true), data = buf.subarray(start, start + size);
+    const text = method === 8 ? await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text() : new TextDecoder().decode(data);
+    files[name] = text;
+    p += 46 + nameLength + view.getUint16(p + 30, true) + view.getUint16(p + 32, true);
+  }
+  return files;
+}
+
+// The ad container for the check: only this network's API exists, and the page answers the portal's commands.
+const CONTAINER = kind => `<script>(function(){
+  function post(t, x){ parent.postMessage({ playspellCheck: true, type: t, text: x === undefined ? "" : String(x) }, "*"); }
+  var L = {}, ready = false, viewable = false;
+  function fire(e, v){ (L[e] || []).slice().forEach(function(f){ f(v); }); }
+  var on = function(e, f){ (L[e] = L[e] || []).push(f); }, off = function(){};
+  var size = function(){ return { width: innerWidth, height: innerHeight }; };
+  addEventListener("securitypolicyviolation", function(e){ post("outside", e.blockedURI + " (" + e.violatedDirective + ")"); });
+  addEventListener("error", function(e){ post("error", e.message); });
+  addEventListener("unhandledrejection", function(e){ post("error", e.reason && e.reason.message || e.reason); });
+  var kind = "${kind}";
+  if (kind === "mraid") window.mraid = { getVersion: function(){ return "3.0"; }, getState: function(){ return ready ? "default" : "loading"; }, getPlacementType: function(){ return "interstitial"; },
+    isViewable: function(){ return viewable; }, supports: function(){ return false; }, addEventListener: on, removeEventListener: off, open: function(u){ post("cta", "mraid.open"); post("url", u); },
+    close: off, getScreenSize: size, getMaxSize: size, getCurrentPosition: function(){ return { x: 0, y: 0, width: innerWidth, height: innerHeight }; } };
+  if (kind === "dapi") window.dapi = { isReady: function(){ return ready; }, isViewable: function(){ return viewable; }, getAudioVolume: function(){ return 1; }, addEventListener: on, removeEventListener: off,
+    openStoreUrl: function(){ post("cta", "dapi.openStoreUrl"); }, getScreenSize: size };
+  if (kind === "mintegral") { window.gameReady = function(){ post("gameReady"); }; window.gameEnd = function(){ post("end", "gameEnd"); }; window.install = function(){ post("cta", "install"); }; }
+  window.__checkApi = function(name){ var p = name.split("."), o = window; p.slice(0, -1).forEach(function(k){ o = o[k] = o[k] || {}; }); o[p[p.length - 1]] = function(){ post("cta", name); }; };
+  var state = function(){ var g = window.__playspell; return { booted: !!g && g.ready !== false, paused: !!(g && g.world.paused), frames: g ? g.Time.frameCount : 0, canvas: !!document.querySelector("canvas"), hidden: document.hidden }; };
+  // how many colours are on screen: a blank playable has one. Read right after a frame, while the picture is still there.
+  var colours = function(){
+    var g = window.__playspell, c = document.querySelector("canvas"), gl = c && (c.getContext("webgl2") || c.getContext("webgl"));
+    if (!g || !gl) return -1;
+    g.step(1);
+    var seen = {}, px = new Uint8Array(4);
+    for (var y = 1; y < 10; y++) for (var x = 1; x < 10; x++) { gl.readPixels(Math.floor(c.width * x / 10), Math.floor(c.height * y / 10), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); seen[px[0] + "," + px[1] + "," + px[2]] = 1; }
+    return Object.keys(seen).length;
+  };
+  addEventListener("message", function(e){
+    var m = e.data; if (!m || !m.cmd) { return; }
+    if (m.cmd === "api") window.__checkApi(m.name);
+    if (m.cmd === "ready") { ready = true; fire("ready"); }
+    if (m.cmd === "show" || m.cmd === "hide") { viewable = m.cmd === "show"; fire("viewableChange", kind === "dapi" ? { isViewable: viewable } : viewable);
+      if (kind === "vungle") window.postMessage(viewable ? "ad-event-resume" : "ad-event-pause", "*");
+      if (kind === "mintegral") (viewable ? window.gameStart : window.gameClose)(); }
+    if (m.cmd === "cta") window.__cta();
+    if (m.cmd === "end") window.__gameEnd();
+    // answered after any message already queued: a pause from the container may be one of them
+    if (m.cmd === "state") setTimeout(function(){ post("state", JSON.stringify(state())); }, 50);
+    if (m.cmd === "colours") post("colours", colours());
+    if (m.cmd === "hooks") post("hooks", typeof window.gameStart + " " + typeof window.gameClose);
+  });
+  // booted once the game runs: a runtime warms its shaders up first (ready stays false meanwhile)
+  (function poll(){ if (window.__playspell && window.__playspell.ready !== false) post("booted"); else setTimeout(poll, 50); })();
+})();<\/script>`;
+// Nothing may come from outside the file. The network's own SDK tags are left out, as the container supplies them.
+const NO_OUTSIDE = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' data: blob:; style-src 'unsafe-inline' data: blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src data: blob:; worker-src blob:">`;
+
+async function checkFile(b, v) {
+  const spec = SPEC[b.network], problems = [], warnings = [];
+  const { name, blob } = await fileFor(b, v);
+  const MB = 1048576;
+  let html, files = null;
+  if (b.zip) {
+    files = await readZip(blob);
+    const want = spec.files().slice().sort(), got = Object.keys(files).sort();
+    if (want.join() !== got.join()) problems.push(`ZIP should hold ${want.join(", ")}; it holds ${got.join(", ")}`);
+    html = files[spec.files()[0]] ?? Object.entries(files).find(([k]) => k.endsWith(".html"))?.[1] ?? "";
+  } else {
+    html = await blob.text();
+    if (!spec.html.test(name)) problems.push(`File is named ${name}; ${b.label} wants ${spec.html}`);
+  }
+  if (spec.name && !spec.name.test(name.replace(/\.zip$/, ""))) problems.push("Name may only use letters, numbers and underscores");
+  const limit = (spec.max || 5) * MB;
+  if (blob.size > limit) problems.push(`${(blob.size / MB).toFixed(2)} MB is over ${b.label}'s ${spec.max || 5} MB limit`);
+  // the page without the packed game, then the config beside it
+  const page = html.replace(/<script id="playspell-payload"[\s\S]*?<\/script>/, "");
+  const text = page + (files?.["config.json"] ?? "");
+  if (b.zip && spec.files().includes("config.json")) { try { JSON.parse(files["config.json"]); } catch { problems.push("config.json isn't valid JSON"); } }
+  for (const need of spec.has || []) if (!text.includes(need)) problems.push("Missing " + need);
+  for (const ban of spec.not || []) if (page.includes(ban)) problems.push("Must not contain " + ban);
+  const headEnd = page.search(/<\/head>/i);
+  for (const need of spec.head || []) if (page.indexOf(need) > headEnd || page.indexOf(need) < 0) problems.push(need + " has to be in <head>");
+  for (const need of spec.body || []) if (page.indexOf(need) < headEnd) problems.push(need + " has to be in <body>");
+  if (!/^<!DOCTYPE html>/.test(html)) problems.push("No <!DOCTYPE html>");
+  if (!/<meta charset="utf-8">/i.test(html)) problems.push("No UTF-8 charset");
+  if (/location\.(href|assign|replace)|top\.location/.test(page)) problems.push("The file redirects by itself");
+  for (const i of issuesOf(b)) (i.level === "error" ? problems : warnings).push(i.text);
+
+  // the run
+  const frame = $("checkFrame"), got = { cta: [], end: [], ready: 0, errors: [], outside: [], urls: [] };
+  let waiting = null;
+  const listen = e => {
+    if (e.source !== frame.contentWindow) return;
+    if (e.data === "download") got.cta.push("download");
+    if (e.data === "complete") got.end.push("complete");
+    const m = e.data;
+    if (!m?.playspellCheck) return;
+    if (m.type === "cta") got.cta.push(m.text);
+    if (m.type === "url") got.urls.push(m.text);
+    if (m.type === "end") got.end.push(m.text);
+    if (m.type === "gameReady") got.ready++;
+    if (m.type === "error") got.errors.push(m.text);
+    if (m.type === "outside") got.outside.push(m.text);
+    if (waiting?.type === m.type) { waiting.done(m.text); waiting = null; }
+  };
+  addEventListener("message", listen);
+  const send = cmd => frame.contentWindow.postMessage(typeof cmd === "string" ? { cmd } : cmd, "*");
+  const wait = (type, ms, ask) => new Promise(done => { const t = setTimeout(() => { waiting = null; done(null); }, ms); waiting = { type, done: x => { clearTimeout(t); done(x); } }; ask?.(); });
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const paused = async () => { await pause(120); const j = await wait("state", 3000, () => send("state")); return j ? JSON.parse(j) : {}; };
+  const started = performance.now();
+  const booted = wait("booted", 45000);
+  frame.srcdoc = html.replace(/<script src="(https?:\/\/[^"]+|mraid\.js)"><\/script>/g, "<!-- $1 comes from the ad -->").replace(/<head>/i, m => m + NO_OUTSIDE + CONTAINER(spec.kind));
+  try {
+    if ((await booted) === null) { problems.push("The game didn't start within 45 s" + (got.errors.length ? ": " + got.errors[0] : "")); return { problems, warnings, got }; }
+    const loadTime = (performance.now() - started) / 1000;
+    if (loadTime > 10) warnings.push(`Took ${loadTime.toFixed(1)} s to start here; networks want it quicker`);
+    if (spec.api) send({ cmd: "api", name: spec.api });
+    if (spec.kind === "mraid" || spec.kind === "dapi") {
+      send("ready");
+      let s = await paused();
+      if (!s.paused) problems.push("Keeps playing while the ad isn't viewable");
+      send("show");
+      s = await paused();
+      if (s.paused) problems.push("Doesn't start when the ad becomes viewable");
+    }
+    if (spec.kind === "mintegral") {
+      if (got.ready !== 1) problems.push(`gameReady was called ${got.ready} time(s), not once`);
+      const hooks = await wait("hooks", 3000, () => send("hooks"));
+      if (hooks !== "function function") problems.push("gameStart and gameClose have to be global functions");
+    }
+    if (spec.kind === "mraid" || spec.kind === "dapi" || spec.kind === "vungle" || spec.kind === "mintegral") {
+      send("hide");
+      let s = await paused();
+      if (!s.paused) problems.push("Doesn't pause when the ad is hidden");
+      send("show");
+      s = await paused();
+      if (s.paused) problems.push("Doesn't resume when the ad is shown again");
+    }
+    const a = await paused(); await pause(600); const z = await paused();
+    if (!z.canvas) problems.push("Nothing to draw on: no canvas");
+    if (z.frames <= a.frames) (z.hidden ? warnings : problems).push(z.hidden ? "Couldn't watch it draw: keep this tab in front while checking" : "The game isn't drawing any new frames");
+    else if (Number(await wait("colours", 3000, () => send("colours"))) === 1) problems.push("The screen is one flat colour: the game isn't showing anything");
+    if (spec.end) {
+      send("end"); await pause(200);
+      if (got.end[0] !== spec.end) problems.push(`GameEnded should call ${spec.end}; it called ${got.end[0] ?? "nothing"}`);
+      send("end"); await pause(200);
+      if (got.end.length > 1) problems.push(`${spec.end} went out twice`);
+      await pause(1600);
+    }
+    send("cta"); await pause(300);
+    const wanted = spec.cta || spec.api;
+    if (got.cta.length !== 1 || got.cta[0] !== wanted) problems.push(`The install button should call ${wanted}; it called ${got.cta.join(", ") || "nothing"}`);
+    for (const x of new Set(got.outside)) problems.push("Reached outside the file: " + x);
+    for (const x of new Set(got.errors)) problems.push("Script error: " + x);
+    if (spec.end && !playState().gameEnd) warnings.push(`Not played to the end yet: ${b.label} rejects a game that never calls ${spec.end}`);
+  } finally {
+    removeEventListener("message", listen);
+    frame.srcdoc = "<!doctype html>";
+  }
+  return { problems: [...new Set(problems)], warnings: [...new Set(warnings)], got };
+}
+
+const checkRowHtml = (b, r) => {
+  const st = !r ? "" : r.problems.length ? "error" : r.warnings.length ? "warning" : "ok";
+  const list = !r ? "" : [...r.problems.map(t => `<div class="issue error">${esc(t)}</div>`), ...r.warnings.map(t => `<div class="issue warning">${esc(t)}</div>`)].join("");
+  return `<tr><td>${esc(b.label)}</td><td><span class="status ${st}">${!r ? "…" : st === "ok" ? "✓ Pass" : st === "warning" ? "! Check" : "✕ Fix"}</span></td><td>${list}</td></tr>`;
+};
+
+// The check run by hand: the game's real taps and its real end, from the Preview tab. Kept per build.
+const playKey = () => "playspell-play:" + (state.report?.built ?? "");
+function playState() { try { return JSON.parse(localStorage.getItem(playKey()) || "{}"); } catch { return state.play || {}; } }
+function notePlay(type) {
+  const p = playState();
+  p[type] = (p[type] || 0) + 1;
+  state.play = p;
+  try { localStorage.setItem(playKey(), JSON.stringify(p)); } catch { }
+  renderPlayTest();
+}
+function renderPlayTest() {
+  const p = playState(), pill = (ok, bad, text) => `<span class="pill ${bad ? "err" : ok ? "ok" : "warn"}">${esc(text)}</span>`;
+  $("playTest").innerHTML = `<b style="font-size:12px;margin-right:6px">Your play on Preview:</b>
+    ${pill(p.cta, false, p.cta ? "Install tapped ✓" : "Install not tapped yet")}
+    ${pill(p.gameEnd, false, p.gameEnd ? "Game end fired ✓" : "Game end not fired yet")}
+    ${p.noTap ? pill(false, true, "Store opened without a tap") : ""}
+    ${p.firstTap ? pill(false, true, "Store opened on the first tap") : ""}
+    ${p.error ? pill(false, true, p.error + " script error(s)") : ""}`;
+}
+
+async function runChecks() {
+  const v = state.variations.find((x, i) => picked.variations[i]) ?? state.variations[0];
+  const ns = state.report.builds.filter((b, i) => picked.networks[i]), out = {};
+  $("checkGo").disabled = true;
+  $("checkFrame").style.display = "";
+  $("checkRows").innerHTML = ns.map(b => checkRowHtml(b)).join("");
+  const rows = () => $("checkRows").innerHTML = ns.map(b => checkRowHtml(b, out[b.network])).join("");
+  try {
+    for (const b of ns) {
+      try { out[b.network] = await checkFile(b, v); }
+      catch (e) { out[b.network] = { problems: ["The check failed: " + e.message], warnings: [] }; }
+      rows();
+    }
+  } finally {
+    $("checkFrame").style.display = "none";
+    $("checkGo").disabled = false;
+  }
+  return out;
+}
+$("checkGo").onclick = runChecks;
+window.__portalCheck = runChecks;
+
+load().then(() => { if (state.report) renderPlayTest(); });
+</script>
+</body>
+</html>

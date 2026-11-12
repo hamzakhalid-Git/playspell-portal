@@ -1,0 +1,7 @@
+/* The sign-in card over the build portal on the online portal (that page has its own styles). */
+#psGate { font:14px/1.5 system-ui,sans-serif; color:#16202c; background:#f5f6f8; }
+@media (prefers-color-scheme: dark) { #psGate { color:#e6ebf1; background:#0f141b; } #psGate .card { background:#171e27 !important; border-color:#2a3440 !important; } }
+#psGate .login { max-width:380px; margin:12vh auto; padding:0 16px; }
+#psGate h2 { margin:0 0 12px; font-size:18px; }
+#psGate .card { background:#fff; border:1px solid #d9dee5; border-radius:10px; padding:16px; }
+#psGate .dim { color:#5b6878; } #psGate .err { color:#c62f2f; }
