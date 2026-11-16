@@ -407,6 +407,7 @@ const MOCKS = `<script>(function(){
   window.ExitApi = { exit:function(){ cta("ExitApi.exit()"); } };
   window.openAppStore = function(){ cta("openAppStore()"); };
   window.install = function(){ cta("install()"); };
+  window.ALPlayableAnalytics = { trackEvent:function(e){ post("event", "AppLovin analytics: " + e); } };
   var sentTexts = 0;
   setInterval(function(){ var all = Array.from(window.__playspellTexts || []); if (all.length > sentTexts) { try { parent.postMessage({ playspellPreview: true, type: "texts", rows: all.slice(sentTexts) }, "*"); } catch(e){} sentTexts = all.length; } }, 700);
   addEventListener("message", function(e){
@@ -1034,10 +1035,12 @@ function renderVariationList() {
 
 // A network build's HTML with a variation's values (and language) put in, and its store links in the
 // network bridge; for the preview also the SDK test doubles, without the real SDK scripts.
-async function htmlFor(build, v, { forPreview = false, language } = {}) {
+async function htmlFor(build, v, { forPreview = false, language, track = null } = {}) {
   const html = await (await fetch(build.source || build.file, { cache: "no-store" })).text();
   const values = overrides(v), lang = language ?? v.language, links = storeFor(v);
   let inject = "";
+  // what the file reports for the online portal's Insights (runtime/src/unity/track.js)
+  if (track) inject += `<script>window.__PLAYSPELL_TRACK__ = ${JSON.stringify({ m: track.measurementId, s: track.apiSecret, c: track.concept, n: build.network, v: v.name || "" }).replace(/</g, "\\u003c")};<\/script>`;
   if (Object.keys(values).length) inject += `<script>window.__PLAYSPELL_FIELDS__ = ${JSON.stringify(values).replace(/</g, "\\u003c")};<\/script>`;
   if (lang) inject += `<script>window.__PLAYSPELL_LANGUAGE__ = ${JSON.stringify(lang)};<\/script>`;
   const table = translationTable(lang || "");
@@ -1050,13 +1053,32 @@ async function htmlFor(build, v, { forPreview = false, language } = {}) {
 }
 
 // The upload-ready file: HTML, or a ZIP with the network's extra files.
+// Whether the online portal tracks this network's files live, and what they send with; a computer's own portal has no
+// such address, so nothing made there tracks.
+const trackingOf = new Map();
+function trackingFor(network) {
+  if (!trackingOf.has(network)) trackingOf.set(network, fetch(`api/tracking?network=${encodeURIComponent(network)}`, { cache: "no-store" })
+    .then(r => (r.ok ? r.json() : null)).then(t => (t && t.on ? t : null)).catch(() => null));
+  return trackingOf.get(network);
+}
+
+// On the online portal a download's name carries its concept (…_ps<id>.html), and its variation when it isn't Unity's
+// values, so an ad network's report on the creative it becomes can be put back on the concept (Insights). Mintegral's
+// keeps its name: its ZIP, folder and page must all share one.
+function downloadName(build, v) {
+  const name = build.file.split("/").pop(), concept = new URLSearchParams(location.search).get("b") || "";
+  if (!/^[A-Za-z0-9]{6,40}$/.test(concept) || build.network === "mintegral") return name;
+  const dot = name.lastIndexOf("."), part = v && v.name && v !== state.variations[0] ? "_" + slug(v.name) : "";
+  return name.slice(0, dot) + part + "_ps" + concept + name.slice(dot);
+}
+
 async function fileFor(build, v) {
-  const name = build.file.split("/").pop(), links = storeFor(v), built = builtStore();
+  const name = downloadName(build, v), links = storeFor(v), built = builtStore(), track = await trackingFor(build.network);
   // the build's own file when nothing would change in it
   const sameTexts = JSON.stringify(translationTable(v.language || "")) === JSON.stringify(state.report.languages?.table ?? null);
-  if (!Object.keys(overrides(v)).length && !v.language && sameTexts && links.ios === built.ios && links.android === built.android)
+  if (!track && !Object.keys(overrides(v)).length && !v.language && sameTexts && links.ios === built.ios && links.android === built.android)
     return { name, blob: await (await fetch(build.file, { cache: "no-store" })).blob() };
-  const html = await htmlFor(build, v);
+  const html = await htmlFor(build, v, { track });
   if (!build.zip) return { name, blob: new Blob([html], { type: "text/html" }) };
   const extra = await Promise.all((build.zip.extra || []).map(async p => ({ path: p.split("/").pop(), data: new Uint8Array(await (await fetch(p)).arrayBuffer()) })));
   return { name, blob: await zip([{ path: build.zip.entry, data: html }, ...extra], { deflate: true }) };

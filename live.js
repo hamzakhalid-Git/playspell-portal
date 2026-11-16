@@ -45,6 +45,9 @@
       await PS.call(method === "DELETE" ? "share_delete" : "share_set", { id: id, token: share[1], on: !!body.on });
       return answer({ ok: true });
     }
+    // what a download for a network reports live (Insights), when the portal tracks that network
+    var tracking = /^api\/tracking\?network=([A-Za-z0-9_-]+)$/.exec(url);
+    if (tracking) return answer(await PS.call("tracking", { id: id, network: tracking[1] }, { retry: true }));
     if (url === "rename?back=portal") { location.href = "./?rename=" + encodeURIComponent(id) + "&back=portal"; return answer({}); }
     if (url.lastIndexOf("api/", 0) === 0) return answer({ error: "not on the online portal" }, 404);
     var path = url.split(/[?#]/)[0].replace(/^\.\//, "");

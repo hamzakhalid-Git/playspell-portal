@@ -6,7 +6,7 @@
   var root = document.getElementById("app");
   var params = new URLSearchParams(location.search);
 
-  var app = PS.app = { pages: {}, order: ["builds", "team", "downloads", "account"], current: "", main: null, banner: "" };
+  var app = PS.app = { pages: {}, order: ["builds", "insights", "team", "downloads", "account"], current: "", main: null, banner: "" };
   var extended = new Promise(function (r) { app.extended = r; });
 
   function frame() {
@@ -16,6 +16,7 @@
     }).join("") + '<span class="right"><span class="dim">' + esc(me.email) + '</span><button id="signOut">Sign out</button></span></header>' +
       (app.banner ? '<p class="err banner">' + app.banner + "</p>" : "") + "<main></main>";
     app.main = root.querySelector("main");
+    if (app.pages[app.current] && app.pages[app.current].wide) app.main.className = "wide";
     root.querySelector("#signOut").onclick = function () { PS.signOut(); location.hash = ""; start(); };
   }
 
@@ -184,6 +185,8 @@
   // ---------------------------------------------------------------- start
 
   async function start() {
+    // the page's other scripts (insights.js) have added their pages
+    if (document.readyState === "loading") await new Promise(function (r) { addEventListener("DOMContentLoaded", r, { once: true }); });
     var me = await PS.signIn(root);
     if (me.ui) PS.runExtra(me.ui);
     PS.onSignedOut = function () { start(); };
