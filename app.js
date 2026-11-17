@@ -6,7 +6,7 @@
   var root = document.getElementById("app");
   var params = new URLSearchParams(location.search);
 
-  var app = PS.app = { pages: {}, order: ["builds", "insights", "team", "downloads", "account"], current: "", main: null, banner: "" };
+  var app = PS.app = { pages: {}, order: ["builds", "insights", "convert", "team", "downloads", "account"], current: "", main: null, banner: "" };
   var extended = new Promise(function (r) { app.extended = r; });
 
   function frame() {

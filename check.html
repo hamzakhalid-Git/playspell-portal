@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- The Convert page plays each file it makes here, to check it. This frame is sandboxed with no origin of its own, so the
+     game can't reach the portal, and this policy keeps it from loading anything from the internet: an ad can't either. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' data: blob:; style-src 'unsafe-inline' data: blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src data: blob:; worker-src blob: data:; base-uri 'none'; form-action 'none'">
+<title>Check</title>
+</head>
+<body style="margin:0;background:#000">
+<script>
+addEventListener("message", function load(e) {
+  if (e.source !== parent || !e.data || typeof e.data.psCheckLoad !== "string") return;
+  removeEventListener("message", load);
+  document.open();
+  document.write(e.data.psCheckLoad);
+  document.close();
+});
+parent.postMessage({ psCheck: true, type: "waiting" }, "*");
+</script>
+</body>
+</html>
