@@ -7,7 +7,7 @@
   var NETWORKS = { applovin: "AppLovin", unity: "Unity Ads", ironsource: "ironSource", facebook: "Meta", moloco: "Moloco", google: "Google Ads", mintegral: "Mintegral", tiktok: "TikTok", vungle: "Liftoff", adcolony: "Generic MRAID", snapchat: "Snapchat" };
   var PERIODS = [[1, "Last 24 hours"], [7, "Last 7 days"], [30, "Last 30 days"], [90, "Last 90 days"]];
   var SLOTS = 5; // the concepts drawn on their own; the rest are "Other"
-  var view = { days: 7, network: "", project: "", sort: "impressions", dir: -1, sample: false };
+  var view = { days: 7, network: "", project: "", sort: "impressions", dir: -1, sample: false }, visit = -1;
   var last = null, colorOf = {}, resizeTimer = 0;
 
   var n = function (v) { return Math.round(v || 0).toLocaleString("en-US"); };
@@ -299,6 +299,61 @@
       '<p class="dim">With it, AppLovin reports each playable by day: impressions, engagement (players who touched it), completion (end card, or won or lost), store clicks, crashes, and installs, as IPM (installs per thousand impressions). A file downloaded from a build\'s Export tab finds its concept by itself, so each concept gets its own numbers, against the period before.</p></div>';
   }
 
+  // ---------------------------------------------------------------- by project and by network: each one's numbers,
+  // and a click shows only it
+
+  var BREAK = [["impressions", "Impressions"], ["engaged", "Engagement"], ["completed", "Completion"], ["clicks", "Clicked to store"], ["installs", "IPM"]];
+  function sum(list) {
+    var o = {};
+    METRICS.forEach(function (m) { o[m] = 0; });
+    list.forEach(function (c) { METRICS.forEach(function (m) { o[m] += c[m] || 0; }); });
+    return o;
+  }
+  function breakRow(attr, key, label, sub, m, on) {
+    var cell = function (k) {
+      if (k === "impressions") return "<td>" + n(m.impressions) + "</td>";
+      var b = m[BASE[k]];
+      return b > 0 ? "<td>" + (k === "installs" ? ipm(m[k], b) : pct(m[k], b)) + "</td>" : '<td class="dim">–</td>';
+    };
+    return "<tr" + (on ? ' class="on"' : "") + '><td><button class="link pick" ' + attr + '="' + esc(key) + '" title="Show only ' + esc(label) + '"><b>' + esc(label) + "</b></button>" +
+      (sub ? '<br><span class="dim">' + sub + "</span>" : "") + "</td>" + BREAK.map(function (c) { return cell(c[0]); }).join("") + "</tr>";
+  }
+  function breakTable(first, rows) {
+    return '<table class="ins-bt"><thead><tr><th>' + first + "</th>" + BREAK.map(function (c) { return "<th>" + c[1] + "</th>"; }).join("") + "</tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+  function byProject(r) {
+    var groups = {};
+    r.concepts.forEach(function (c) { (groups[c.project] || (groups[c.project] = [])).push(c); });
+    var list = Object.keys(groups).map(function (p) { return { p: p, m: sum(groups[p]), n: groups[p].length }; }).sort(function (a, b) { return b.m.impressions - a.m.impressions; });
+    var rows = list.map(function (g) { return breakRow("data-pick-project", g.p, g.p || "No project", g.n + (g.n === 1 ? " concept" : " concepts"), g.m, g.p === view.project); }).join("");
+    var all = view.project ? ' <button class="link" data-pick-project="">All projects</button>' : "";
+    return '<div class="card"><div class="row ins-tablehead"><h3>By project' + (view.project ? ' <span class="dim">· ' + esc(view.project) + "</span>" : "") + "</h3>" + all + "</div>" + breakTable("Project", rows) + "</div>";
+  }
+  // each network's numbers come from its own answer, after the page shows
+  function byNetwork(r) {
+    var all = view.network ? ' <button class="link" data-pick-network="">All networks</button>' : "";
+    return '<div class="card"><div class="row ins-tablehead"><h3>By network' + (view.network ? ' <span class="dim">· ' + esc(netName(view.network)) + "</span>" : "") + "</h3>" + all + "</div>" +
+      '<div id="insByNet"><p class="dim">Loading…</p></div></div>';
+  }
+  async function fillNetworks(main, r) {
+    var box = main.querySelector("#insByNet");
+    if (!box) return;
+    var nets = r.networks.slice();
+    if (!nets.length) { box.innerHTML = '<p class="dim">No network has reported yet.</p>'; return; }
+    var answers = await Promise.all(nets.map(function (net) {
+      if (r.sample) return Promise.resolve(sampleAnswer(view.days, view.project));
+      return PS.call("insights", { days: view.days, network: net, project: view.project }, { retry: true }).catch(function () { return null; });
+    }));
+    if (last !== r || !main.contains(box)) return; // the page has moved on
+    var rows = nets.map(function (net, i) {
+      var a = answers[i];
+      if (!a || !a.totals) return "<tr><td><b>" + esc(netName(net)) + '</b></td><td class="dim" colspan="' + BREAK.length + '">Couldn\'t load</td></tr>';
+      return breakRow("data-pick-network", net, netName(net), a.concepts.length + (a.concepts.length === 1 ? " concept" : " concepts"), a.totals, net === view.network);
+    }).join("");
+    box.innerHTML = breakTable("Network", rows);
+    box.querySelectorAll("[data-pick-network]").forEach(function (b) { b.onclick = function () { view.network = b.dataset.pickNetwork; app.pages.insights.render(main); }; });
+  }
+
   // ---------------------------------------------------------------- the page
 
   function filters(r) {
@@ -346,9 +401,11 @@
     main.innerHTML = head + body + kpis(r) +
       '<div class="ins-charts"><div class="card"><h3>Timeline <span class="dim">· impressions</span></h3>' + legend(ls) + '<div class="timeline"></div></div>' +
       '<div class="card dist"><h3>Distribution</h3>' + donut(ls, r.totals.impressions) + "</div></div>" +
+      '<div class="ins-break">' + byProject(r) + byNetwork(r) + "</div>" +
       '<div class="card"><div class="row ins-tablehead"><h3>Concepts <span class="dim">(' + r.concepts.length + ')</span></h3><button id="insCsv">Export as CSV</button></div>' + table(r) + "</div>" + (r.sample ? needs() : linking(r) + sources(r));
     timeline(main.querySelector(".timeline"), r, ls);
     wire(main, r);
+    fillNetworks(main, r);
   }
 
   function wire(main, r) {
@@ -357,6 +414,8 @@
     main.querySelector("#insNet").onchange = function (e) { view.network = e.target.value; load(); };
     main.querySelector("#insProj").onchange = function (e) { view.project = e.target.value; load(); };
     main.querySelector("#insRefresh").onclick = load;
+    main.querySelectorAll("[data-pick-project]").forEach(function (b) { b.onclick = function () { view.project = b.dataset.pickProject; load(); }; });
+    main.querySelectorAll("[data-pick-network]").forEach(function (b) { b.onclick = function () { view.network = b.dataset.pickNetwork; load(); }; });
     var sampleOn = main.querySelector("#insSample"), sampleOff = main.querySelector("#insSampleOff");
     if (sampleOn) sampleOn.onclick = function () { view.sample = true; view.network = ""; view.project = ""; load(); };
     if (sampleOff) sampleOff.onclick = function () { view.sample = false; view.network = ""; view.project = ""; load(); };
@@ -392,6 +451,22 @@
     title: "Insights",
     wide: true,
     render: async function (main) {
+      // a link to one project or network (#insights?project=…&network=…&days=…): its filters, once per visit
+      if (visit !== app.visits) {
+        visit = app.visits;
+        var q = app.params;
+        if (q.has("project") || q.has("network") || q.has("days")) {
+          view.project = q.get("project") || "";
+          view.network = (q.get("network") || "").toLowerCase();
+          if (PERIODS.some(function (p) { return String(p[0]) === q.get("days"); })) view.days = Number(q.get("days"));
+          view.sample = false;
+        }
+      }
+      var here = new URLSearchParams();
+      if (view.project) here.set("project", view.project);
+      if (view.network) here.set("network", view.network);
+      if (view.days !== 7) here.set("days", String(view.days));
+      try { history.replaceState(null, "", "#insights" + (String(here) ? "?" + String(here).replace(/\+/g, "%20") : "")); } catch (e) { /* a page that can't change its address keeps working */ }
       var r;
       if (view.sample) r = sampleAnswer(view.days, view.project);
       else {

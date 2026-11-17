@@ -20,7 +20,14 @@
     root.querySelector("#signOut").onclick = function () { PS.signOut(); location.hash = ""; start(); };
   }
 
+  // a page and what follows "?" in its address, for the page to read (#insights?project=Fishing)
+  app.params = new URLSearchParams();
+  app.visits = 0;
   app.go = function (name) {
+    var q = String(name || "").split("?");
+    name = q[0];
+    app.params = new URLSearchParams(q.slice(1).join("?"));
+    app.visits++;
     if (!app.pages[name] || (app.pages[name].show && !app.pages[name].show(PS.me))) name = "builds";
     app.current = name;
     frame();
@@ -48,7 +55,8 @@
     return '<tr><td><a href="portal.html?b=' + encodeURIComponent(b.id) + '"><b>' + esc(b.name) + "</b></a></td><td>" + esc(b.project) + "</td>" +
       // a concept published again from Unity keeps its place, links and values: its version counts the publishes
       "<td>" + mb(b.size) + "</td><td>" + when(b.publishedAt) + (b.revision > 1 ? ' <span class="dim">· version ' + b.revision + "</span>" : "") + '<br><span class="dim">' + esc(b.by) + "</span></td><td>" + b.shares + "</td>" +
-      "<td>" + (b.mayChange ? '<button class="link" data-rename="' + esc(b.id) + '">Rename</button> · <button class="link" data-delete="' + esc(b.id) + '">Delete</button>' : "") + "</td></tr>";
+      "<td>" + [b.project ? '<a href="#insights?project=' + encodeURIComponent(b.project) + '" title="How this project\'s concepts do">Insights</a>' : "",
+        b.mayChange ? '<button class="link" data-rename="' + esc(b.id) + '">Rename</button> · <button class="link" data-delete="' + esc(b.id) + '">Delete</button>' : ""].filter(Boolean).join(" · ") + "</td></tr>";
   };
   app.wireBuildActions = function (main, builds) {
     main.querySelectorAll("[data-rename]").forEach(function (el) { el.onclick = function () { renameBuild(builds.find(function (b) { return b.id === el.dataset.rename; })); }; });
