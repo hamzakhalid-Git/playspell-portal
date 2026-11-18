@@ -163,9 +163,11 @@
     if (!done) { box.innerHTML = ""; return; }
     var head = '<div class="card"><h3>Test link for QA</h3>';
     if (saved) {
-      box.innerHTML = head + "<p>Saved as <b>" + esc(saved.name) + "</b> in <b>" + esc(saved.project) + "</b>. Anyone with this link can play it on a phone or a computer, without signing in:</p>" +
+      // the link's QR code beside it, for a phone's camera
+      var qr = window.PlaySpellQR ? '<div class="cv-qr" title="Scan with a phone\'s camera">' + window.PlaySpellQR.qrSvg(saved.url, 168) + "</div>" : "";
+      box.innerHTML = head + '<div class="cv-linkrow">' + qr + "<div><p>Saved as <b>" + esc(saved.name) + "</b> in <b>" + esc(saved.project) + "</b>. Anyone with this link can play it on a phone or a computer, without signing in" + (qr ? ": scan the code with a phone's camera, or send the link." : ":") + "</p>" +
         '<div class="cv-link"><input readonly id="cvLink" value="' + esc(saved.url) + '"><button id="cvCopy">Copy</button><a class="cv-open" href="' + esc(saved.url) + '" target="_blank" rel="noopener">Open</a></div>' +
-        '<p class="dim">Its install button says what a real ad would do. On its <a href="' + esc(saved.page) + '">build page</a>, QA can play each network\'s file in a phone frame (Preview), and you can make more links or switch this one off (Share). It\'s listed under Builds.</p></div>';
+        '<p class="dim">Its install button says what a real ad would do. On its <a href="' + esc(saved.page) + '">build page</a>, QA can play each network\'s file in a phone frame (Preview), and you can make more links or switch this one off (Share). It\'s listed under Builds.</p></div></div></div>';
       main.querySelector("#cvCopy").onclick = function () {
         var input = main.querySelector("#cvLink"), b = main.querySelector("#cvCopy");
         input.select();

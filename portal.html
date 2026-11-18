@@ -8,6 +8,7 @@
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script src="live.js"></script>
+<script src="qr.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PlaySpell Portal</title>
@@ -136,6 +137,12 @@
   .tuple { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:4px; }
   .tuple input { padding:6px 4px !important; }
   .notice { font-size:12px; color:var(--dim); margin:0 0 10px; }
+  /* QR codes beside the share links (qr.js, the online portal's) */
+  .share-link { display:flex; gap:12px; align-items:flex-start; }
+  .share-qr { flex:none; line-height:0; } .share-qr svg { border-radius:4px; cursor:zoom-in; }
+  .qr-big { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.72); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; cursor:zoom-out; }
+  .qr-big svg { border-radius:8px; max-width:86vw; max-height:70vh; height:auto; } .qr-big code { color:#fff; font-size:13px; max-width:86vw; word-break:break-all; text-align:center; }
+  #phoneBody .share-qr svg { width:100%; max-width:220px; height:auto; }
   .notice.warn { color:var(--warn); }
   #pgFrameBox { display:flex; justify-content:center; }
   #pgFrameBox .device { border-width:8px; border-radius:24px; }
@@ -215,6 +222,7 @@
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="card"><h3>Checks</h3><div class="body"><div class="checks" id="checks"></div><ul class="notice" id="notes" style="padding-left:16px;margin:10px 0 0"></ul></div></div>
           <div class="card"><h3>Events <button class="small" id="clearLog">Clear</button></h3><div class="body"><div id="log"></div></div></div>
+          <div class="card" id="phoneCard" style="display:none"><h3>On a phone</h3><div class="body" id="phoneBody"></div></div>
         </div>
       </div>
     </section>
@@ -911,6 +919,7 @@ function selectVariation(i) {
   $("vStore").open = ownLinks(variation());
   if (tab === "preview") preview();
   if (tab === "playground") playgroundPreview();
+  renderPhone(); // its link is the variation's
 }
 $("variationPick").onchange = () => selectVariation(Number($("variationPick").value));
 $("newVariation").onclick = () => {
@@ -1380,8 +1389,9 @@ async function loadShares() {
   const choose = s => (state.variations.find(v => v.name === s.variation)?.language || !languages.length ? "" :
     `<br><select class="share-lang" data-lang="${esc(s.token)}" title="Opens the link in this language, whatever the phone's language is">
       <option value="">Phone's language</option>${languages.map(c => `<option value="${esc(c)}">${esc(languageName(c))}</option>`).join("")}</select>`);
+  state.shares = shares;
   $("shareRows").innerHTML = shares.length ? shares.sort((a, b) => b.createdAt - a.createdAt).map(s => `<tr>
-    <td>${s.label ? `<b>${esc(s.label)}</b><br>` : ""}<code data-link="${esc(s.token)}" data-url="${esc(s.url)}" style="word-break:break-all;font-size:12px;${s.on ? "" : "opacity:.5;text-decoration:line-through"}">${esc(s.url)}</code>${choose(s)}</td>
+    <td><div class="share-link">${s.on ? qrHtml(s.url, 104, s.token) : ""}<div>${s.label ? `<b>${esc(s.label)}</b><br>` : ""}<code data-link="${esc(s.token)}" data-url="${esc(s.url)}" style="word-break:break-all;font-size:12px;${s.on ? "" : "opacity:.5;text-decoration:line-through"}">${esc(s.url)}</code>${choose(s)}</div></div></td>
     <td>${esc(s.variation)}</td><td class="num">${s.plays || 0}</td>
     <td><button class="small" data-copy="${esc(s.token)}">Copy</button> <button class="small" data-open="${esc(s.token)}">Open</button> <button class="small" data-toggle="${esc(s.token)}" data-on="${s.on ? 1 : 0}">${s.on ? "Switch off" : "Switch on"}</button> <button class="small" data-drop="${esc(s.token)}">Delete</button></td></tr>`).join("")
     : `<tr><td colspan="4" class="notice">No links yet.</td></tr>`;
@@ -1389,6 +1399,10 @@ async function loadShares() {
   document.querySelectorAll("[data-lang]").forEach(sel => sel.onchange = () => {
     const code = document.querySelector(`[data-link="${sel.dataset.lang}"]`);
     code.textContent = code.dataset.url + (sel.value ? "?lang=" + encodeURIComponent(sel.value) : "");
+    // the code beside it opens the same address
+    const box = document.querySelector(`[data-qr="${sel.dataset.lang}"]`);
+    if (box) box.outerHTML = qrHtml(code.textContent, 104, sel.dataset.lang);
+    wireQr();
   });
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
     try { await navigator.clipboard.writeText(linkOf(b.dataset.copy)); b.textContent = "Copied"; }
@@ -1399,6 +1413,41 @@ async function loadShares() {
   const change = async (token, method, body) => { await fetch("api/shares/" + token, { method, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) }); loadShares(); };
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => change(b.dataset.toggle, "PATCH", { on: b.dataset.on !== "1" }));
   document.querySelectorAll("[data-drop]").forEach(b => b.onclick = () => change(b.dataset.drop, "DELETE"));
+  wireQr();
+  renderPhone();
+}
+
+// A link's QR code, for a phone's camera: beside each share link, and on the Preview tab. A click shows it large.
+function qrHtml(url, px, token) {
+  if (!window.PlaySpellQR) return "";
+  return `<div class="share-qr"${token ? ` data-qr="${esc(token)}"` : ""} data-qr-url="${esc(url)}" title="Scan with a phone's camera. Click to make it bigger">${PlaySpellQR.qrSvg(url, px)}</div>`;
+}
+function wireQr() {
+  document.querySelectorAll("[data-qr-url]").forEach(el => el.onclick = () => {
+    const big = document.createElement("div");
+    big.className = "qr-big";
+    big.innerHTML = PlaySpellQR.qrSvg(el.dataset.qrUrl, 360) + `<code>${esc(el.dataset.qrUrl)}</code>`;
+    big.onclick = () => big.remove();
+    document.body.appendChild(big);
+  });
+}
+// The Preview tab's phone card: the newest link to the variation being previewed, as a code to scan, or a button that
+// makes one.
+function renderPhone() {
+  if (!state.live || !window.PlaySpellQR) return;
+  const v = state.variations[state.current] || state.variations[0], name = v ? v.name : "Unity values";
+  const link = (state.shares || []).filter(s => s.on && s.variation === name).sort((a, b) => b.createdAt - a.createdAt)[0];
+  $("phoneCard").style.display = "";
+  $("phoneBody").innerHTML = link
+    ? `<p class="notice">Scan with a phone's camera to play <b>${esc(name)}</b> there, as anyone with the link does: no sign-in, and the install button says what a real ad would do.</p>${qrHtml(link.url, 220)}<p class="notice" style="margin:8px 0 0;word-break:break-all"><a href="${esc(link.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(link.url)}</a></p>`
+    : `<p class="notice">Make a share link for <b>${esc(name)}</b>, and its code shows here to scan with a phone. Anyone with the link can play it.</p><button class="small primary" id="phoneMake">Make a phone link</button>`;
+  const make = $("phoneMake");
+  if (make) make.onclick = async () => {
+    make.disabled = true;
+    await fetch("api/shares", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variation: name, label: "Phone" }) });
+    loadShares();
+  };
+  wireQr();
 }
 $("shareMake").onclick = async () => {
   await fetch("api/shares", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variation: $("shareVariation").value, label: $("shareLabel").value }) });

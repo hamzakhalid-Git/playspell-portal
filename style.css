@@ -64,3 +64,5 @@ main.wide { max-width:1240px; }
 .cv-issue { font-size:12px; margin-top:3px; max-width:440px; } .cv-issue.err { color:var(--err); } .cv-issue.warn { color:var(--warn, #b98a00); }
 .cv-frame { position:fixed; right:16px; bottom:16px; z-index:50; border:1px solid var(--line); border-radius:6px; background:#000; box-shadow:0 6px 24px rgba(0,0,0,.35); }
 .cv-link { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0 10px; } .cv-link input { flex:1 1 320px; max-width:none; margin:0; font:13px ui-monospace,monospace; } .cv-open { font-weight:600; }
+.cv-linkrow { display:flex; gap:18px; align-items:flex-start; } .cv-linkrow > div:last-child { flex:1; min-width:0; } .cv-qr { flex:none; line-height:0; } .cv-qr svg { border-radius:6px; }
+@media (max-width:640px) { .cv-linkrow { flex-direction:column; } }
