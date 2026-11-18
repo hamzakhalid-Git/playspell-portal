@@ -63,3 +63,4 @@ main.wide { max-width:1240px; }
 .cv-table td { vertical-align:top; } .cv-table td:nth-child(3) { white-space:nowrap; } .cv-net .dim { margin-left:4px; } .cv-table code { font-size:12px; } .cv-st { font-weight:700; white-space:nowrap; } .cv-st.ok { color:var(--ok); } .cv-st.err { color:var(--err); } .cv-st.warn { color:var(--warn, #d9a400); }
 .cv-issue { font-size:12px; margin-top:3px; max-width:440px; } .cv-issue.err { color:var(--err); } .cv-issue.warn { color:var(--warn, #b98a00); }
 .cv-frame { position:fixed; right:16px; bottom:16px; z-index:50; border:1px solid var(--line); border-radius:6px; background:#000; box-shadow:0 6px 24px rgba(0,0,0,.35); }
+.cv-link { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0 10px; } .cv-link input { flex:1 1 320px; max-width:none; margin:0; font:13px ui-monospace,monospace; } .cv-open { font-weight:600; }

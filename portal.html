@@ -1064,10 +1064,10 @@ function trackingFor(network) {
 
 // On the online portal a download's name carries its concept (…_ps<id>.html), and its variation when it isn't Unity's
 // values, so an ad network's report on the creative it becomes can be put back on the concept (Insights). Mintegral's
-// keeps its name: its ZIP, folder and page must all share one.
+// keeps its name, as its ZIP, folder and page must all share one, and so does Unity Ads', which must be index.html.
 function downloadName(build, v) {
   const name = build.file.split("/").pop(), concept = new URLSearchParams(location.search).get("b") || "";
-  if (!/^[A-Za-z0-9]{6,40}$/.test(concept) || build.network === "mintegral") return name;
+  if (!/^[A-Za-z0-9]{6,40}$/.test(concept) || build.network === "mintegral" || build.network === "unity") return name;
   const dot = name.lastIndexOf("."), part = v && v.name && v !== state.variations[0] ? "_" + slug(v.name) : "";
   return name.slice(0, dot) + part + "_ps" + concept + name.slice(dot);
 }
@@ -1459,14 +1459,23 @@ const CONTAINER = kind => `<script>(function(){
     openStoreUrl: function(){ post("cta", "dapi.openStoreUrl"); }, getScreenSize: size };
   if (kind === "mintegral") { window.gameReady = function(){ post("gameReady"); }; window.gameEnd = function(){ post("end", "gameEnd"); }; window.install = function(){ post("cta", "install"); }; }
   window.__checkApi = function(name){ var p = name.split("."), o = window; p.slice(0, -1).forEach(function(k){ o = o[k] = o[k] || {}; }); o[p[p.length - 1]] = function(){ post("cta", name); }; };
-  var state = function(){ var g = window.__playspell; return { booted: !!g && g.ready !== false, paused: !!(g && g.world.paused), frames: g ? g.Time.frameCount : 0, canvas: !!document.querySelector("canvas"), hidden: document.hidden }; };
+  // a playable converted from another tool (tools/convert.mjs) says how it's doing through __psGame
+  var foreign = function(){ return !window.__playspell && !document.getElementById("playspell-payload"); };
+  var gc = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function(t, o){ if (/webgl/.test(t) && foreign()) { o = o || {}; o.preserveDrawingBuffer = true; } return gc.call(this, t, o); };
+  var state = function(){
+    var g = window.__playspell, f = window.__psGame && window.__psGame();
+    if (!g && foreign()) return { booted: document.readyState === "complete", paused: !!(f && f.held), frames: f ? f.frames : 0, canvas: !!document.querySelector("canvas"), hidden: document.hidden, foreign: true };
+    return { booted: !!g && g.ready !== false, paused: !!(g && g.world.paused), frames: g ? g.Time.frameCount : 0, canvas: !!document.querySelector("canvas"), hidden: document.hidden };
+  };
   // how many colours are on screen: a blank playable has one. Read right after a frame, while the picture is still there.
   var colours = function(){
-    var g = window.__playspell, c = document.querySelector("canvas"), gl = c && (c.getContext("webgl2") || c.getContext("webgl"));
-    if (!g || !gl) return -1;
-    g.step(1);
+    var g = window.__playspell, c = document.querySelector("canvas"), gl = c && (c.getContext("webgl2") || c.getContext("webgl")), x2 = null;
+    if (!gl && c && foreign()) x2 = c.getContext("2d");
+    if ((!g && !foreign()) || (!gl && !x2)) return -1;
+    if (g) g.step(1);
     var seen = {}, px = new Uint8Array(4);
-    for (var y = 1; y < 10; y++) for (var x = 1; x < 10; x++) { gl.readPixels(Math.floor(c.width * x / 10), Math.floor(c.height * y / 10), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); seen[px[0] + "," + px[1] + "," + px[2]] = 1; }
+    for (var y = 1; y < 10; y++) for (var x = 1; x < 10; x++) { var X = Math.floor(c.width * x / 10), Y = Math.floor(c.height * y / 10); if (gl) gl.readPixels(X, Y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); else px = x2.getImageData(X, Y, 1, 1).data; seen[px[0] + "," + px[1] + "," + px[2]] = 1; }
     return Object.keys(seen).length;
   };
   addEventListener("message", function(e){
@@ -1484,7 +1493,7 @@ const CONTAINER = kind => `<script>(function(){
     if (m.cmd === "hooks") post("hooks", typeof window.gameStart + " " + typeof window.gameClose);
   });
   // booted once the game runs: a runtime warms its shaders up first (ready stays false meanwhile)
-  (function poll(){ if (window.__playspell && window.__playspell.ready !== false) post("booted"); else setTimeout(poll, 50); })();
+  (function poll(){ if (window.__playspell && window.__playspell.ready !== false || foreign() && document.readyState === "complete") post("booted"); else setTimeout(poll, 50); })();
 })();<\/script>`;
 // Nothing may come from outside the file. The network's own SDK tags are left out, as the container supplies them.
 const NO_OUTSIDE = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' data: blob:; style-src 'unsafe-inline' data: blob:; img-src data: blob:; media-src data: blob:; font-src data: blob:; connect-src data: blob:; worker-src blob:">`;
@@ -1559,6 +1568,8 @@ async function checkFile(b, v) {
       if (s.paused) problems.push("Doesn't start when the ad becomes viewable");
     }
     if (spec.kind === "mintegral") {
+      // a game says it's ready a moment after it starts (once its shaders are warm, or its page has loaded)
+      if (!got.ready) await wait("gameReady", 10000);
       if (got.ready !== 1) problems.push(`gameReady was called ${got.ready} time(s), not once`);
       const hooks = await wait("hooks", 3000, () => send("hooks"));
       if (hooks !== "function function") problems.push("gameStart and gameClose have to be global functions");

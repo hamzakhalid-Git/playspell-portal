@@ -146,6 +146,74 @@
       finally { all.disabled = false; }
     };
   }
+  // ---------------------------------------------------------------- a test link: the files saved on the portal
+
+  // Saved as a build of a project (gatekeeper upload_*, the steps Unity's Publish takes), so a share link plays it on
+  // any phone without signing in, and its build page lets QA play each network's file and make more links.
+  var saved = null, targets = null, saving = false;
+  function b64(bytes) {
+    var s = "";
+    for (var i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+  async function drawShare(main) {
+    var box = main.querySelector("#cvShare");
+    if (!box) return;
+    var done = made.length && made.every(function (m) { return m.result && !m.result.running; });
+    if (!done) { box.innerHTML = ""; return; }
+    var head = '<div class="card"><h3>Test link for QA</h3>';
+    if (saved) {
+      box.innerHTML = head + "<p>Saved as <b>" + esc(saved.name) + "</b> in <b>" + esc(saved.project) + "</b>. Anyone with this link can play it on a phone or a computer, without signing in:</p>" +
+        '<div class="cv-link"><input readonly id="cvLink" value="' + esc(saved.url) + '"><button id="cvCopy">Copy</button><a class="cv-open" href="' + esc(saved.url) + '" target="_blank" rel="noopener">Open</a></div>' +
+        '<p class="dim">Its install button says what a real ad would do. On its <a href="' + esc(saved.page) + '">build page</a>, QA can play each network\'s file in a phone frame (Preview), and you can make more links or switch this one off (Share). It\'s listed under Builds.</p></div>';
+      main.querySelector("#cvCopy").onclick = function () {
+        var input = main.querySelector("#cvLink"), b = main.querySelector("#cvCopy");
+        input.select();
+        (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject()).catch(function () { document.execCommand("copy"); })
+          .then(function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); });
+      };
+      return;
+    }
+    if (!targets) {
+      box.innerHTML = head + '<p class="dim">Loading your projects…</p></div>';
+      try { targets = await PS.call("upload_targets", {}, { retry: true }); }
+      catch (e) { box.innerHTML = head + '<p class="err">' + esc(e.message) + "</p></div>"; return; }
+      if (!main.contains(box) || saved) return;
+    }
+    if (!targets.canPublishNew && !targets.projects.length) { box.innerHTML = head + '<p class="dim">You aren\'t on a team yet, so there\'s nowhere to save it. Ask your admin to add you to one.</p></div>'; return; }
+    var several = new Set(targets.projects.map(function (g) { return g.team; })).size > 1;
+    var options = targets.projects.map(function (g, i) { return '<option value="' + i + '"' + (i === 0 ? " selected" : "") + ">" + esc(g.project || "No project") + (several && g.teamName ? " · " + esc(g.teamName) : "") + "</option>"; }).join("") +
+      (targets.canPublishNew ? '<option value="new"' + (targets.projects.length ? "" : " selected") + ">New project…</option>" : "");
+    box.innerHTML = head + '<p class="dim">Saves these files on the portal as a build, so your QA team can play it from a link on any phone, without signing in, and try each network\'s file on its build page. Only these files go; you can delete the build any time.</p>' +
+      '<form id="cvSaveForm"><div class="cv-fields"><label>Project<select name="project" id="cvProject">' + options + "</select></label>" +
+      '<label id="cvNewProject"' + (targets.projects.length ? ' style="display:none"' : "") + '>New project\'s name<input name="newProject" maxlength="120"></label>' +
+      '<label>Name on the portal<input name="name" maxlength="80" required value="' + esc(flat.info.title || stem) + '"></label></div>' +
+      '<button class="primary" id="cvSave">Save and make a test link</button> <span class="dim" id="cvSaveState"></span><p class="err"></p></form></div>';
+    var sel = main.querySelector("#cvProject");
+    sel.onchange = function () { main.querySelector("#cvNewProject").style.display = sel.value === "new" ? "" : "none"; };
+    app.form(main.querySelector("#cvSaveForm"), async function (d) {
+      if (saving) return;
+      var g = d.project === "new" ? { project: String(d.newProject || "").trim(), team: targets.homeTeam } : targets.projects[Number(d.project)];
+      if (!g || !g.project) throw new Error("Type the new project's name.");
+      var note = main.querySelector("#cvSaveState"), files = C.portalFiles(flat, made, { stem: stem });
+      saving = true;
+      try {
+        note.textContent = "Starting…";
+        var start = await PS.call("upload_start", { name: d.name, project: g.project, team: g.team || "", version: "converted" });
+        for (var i = 0; i < files.length; i++) {
+          note.textContent = "Saving file " + (i + 1) + " of " + files.length + "…";
+          await PS.call("upload_file", { id: start.id, path: files[i].path, data: b64(files[i].bytes) }, { retry: true });
+        }
+        note.textContent = "Finishing…";
+        var fin = await PS.call("upload_finish", { id: start.id });
+        var shares = (await PS.call("share_create", { id: start.id, variation: "Unity values", label: "QA" })).shares;
+        saved = { id: start.id, name: fin.name, project: g.project, url: shares[shares.length - 1].url, page: "portal.html?b=" + encodeURIComponent(start.id) };
+        window.__convertSaved = saved;
+        drawShare(main);
+      } finally { saving = false; if (!saved) note.textContent = ""; }
+    });
+  }
+
   var allZip = null;
   function zipAll() {
     return C.makeZip(made.map(function (m) { return { path: m.out.network + "/" + m.file.name, bytes: m.file.bytes }; })).then(function (z) { allZip = z; return z; });
@@ -165,7 +233,8 @@
     busy = true;
     stem = d.stem;
     var frame = main.querySelector("#cvFrame");
-    made = []; allZip = null;
+    made = []; allZip = null; saved = null;
+    drawShare(main);
     try {
       for (var i = 0; i < d.networks.length; i++) {
         var out = C.build(flat, d.networks[i], { stem: d.stem, ios: d.ios, android: d.android, orientation: d.orientation, title: flat.info.title });
@@ -187,6 +256,7 @@
       frame.style.display = "none";
       frame.removeAttribute("src");
       window.__convertDone = true;
+      drawShare(main);
       window.__convert = made.map(function (m) { return { network: m.out.network, name: m.file.name, size: m.file.bytes.length, problems: m.result ? m.result.problems : null, warnings: m.result ? m.result.warnings : null }; });
     }
   }
@@ -223,9 +293,10 @@
     try {
       var src = await C.read(file.name, new Uint8Array(await file.arrayBuffer()));
       flat = C.flatten(src);
-      made = [];
+      made = []; saved = null;
       window.__convertDone = false;
       setup(main, file);
+      drawShare(main);
       drawResults(main);
       window.__convertReady = true;
     } catch (e) {
@@ -241,9 +312,9 @@
       flat = null; made = [];
       main.innerHTML = "<h2>Convert</h2>" +
         '<div class="card cv-drop" id="cvDrop"><b>Drop a playable here</b>' +
-        '<p class="dim">An HTML file or a ZIP, made for any ad network or with PlaySpell. It becomes each network\'s upload file, and each one is played here with that network\'s API to check it. Your file stays in this browser: nothing is uploaded.</p>' +
+        '<p class="dim">An HTML file or a ZIP, made for any ad network or with PlaySpell. It becomes each network\'s upload file, and each one is played here with that network\'s API to check it. Your file stays in this browser, unless you save it for a test link.</p>' +
         '<label class="cv-pick">Choose a file<input type="file" id="cvFile" accept=".html,.htm,.zip,application/zip,text/html"></label><p class="err" id="cvErr"></p></div>' +
-        '<div id="cvSetup"></div><div id="cvOut"></div>' +
+        '<div id="cvSetup"></div><div id="cvOut"></div><div id="cvShare"></div>' +
         '<iframe id="cvFrame" class="cv-frame" title="File being checked" sandbox="allow-scripts" allow="autoplay" width="180" height="320" style="display:none"></iframe>';
       var drop = main.querySelector("#cvDrop"), input = main.querySelector("#cvFile");
       input.onchange = function () { if (input.files[0]) take(main, input.files[0]); input.value = ""; };
