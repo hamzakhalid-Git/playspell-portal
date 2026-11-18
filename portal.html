@@ -378,10 +378,12 @@ function showTab(name) {
   if (name === "playground") playgroundPreview(); else $("pgFrame").srcdoc = "";
   if (name === "export") renderExport();
   if (name === "languages") renderLanguages();
+  // the top button goes to Export; on Export, back to the Preview
+  $("exportTop").textContent = name === "export" ? "Preview" : "Export";
   try { history.replaceState(null, "", "#" + name); } catch { }
 }
 document.querySelectorAll("nav.side a").forEach(a => a.onclick = () => showTab(a.dataset.tab));
-$("exportTop").onclick = () => showTab("export");
+$("exportTop").onclick = () => showTab(tab === "export" ? "preview" : "export");
 
 // Ad SDK test doubles, injected at the top of the preview's <head>. They report to this page.
 const MOCKS = `<script>(function(){
