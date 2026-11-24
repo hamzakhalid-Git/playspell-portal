@@ -285,7 +285,7 @@
     <section class="tab" id="tab-export">
       <div class="tab-head"><h2>Export</h2><span class="hint">Every chosen variation for every chosen network, in one ZIP: <code>variation/network/file</code>. Upload each file as it is.</span></div>
       <div class="card" id="storeCard" style="margin-bottom:18px"><h3>Store links</h3><div class="body">
-        <p class="notice" style="margin:0 0 6px">Where the install button goes. The portal puts these links in every file it previews, downloads and exports, and the next Unity build uses them too. Left empty, the link from PlaySpell Settings stays.</p>
+        <p class="notice" id="storeAbout" style="margin:0 0 6px">Where the install button goes. The portal puts these links in every file it previews, downloads and exports, and the next Unity build uses them too. Left empty, the link from PlaySpell Settings stays.</p>
         <div class="row wide"><label>App Store<small>iPhone and iPad</small></label><input id="storeIos" spellcheck="false" autocomplete="off"></div>
         <div class="row wide"><label>Google Play<small>Android, and the preview</small></label><input id="storeAndroid" spellcheck="false" autocomplete="off"></div>
         <div class="links" id="storeLinks"></div>
@@ -500,6 +500,8 @@ async function loadVariations() {
   if (!state.api) { try { saved = JSON.parse(localStorage.getItem(storeKey()) || "null"); } catch { saved = null; } }
   const list = Array.isArray(saved) ? saved : saved?.variations;
   state.store = { ios: saved?.store?.ios || "", android: saved?.store?.android || "" };
+  // the online portal keeps store links per project: every build in it uses them
+  state.projectLinks = typeof saved?.projectLinks === "string" ? saved.projectLinks : "";
   state.savedPicks = saved?.picks || null;
   state.variations = [{ name: "Unity values", language: "", values: {} }, ...(Array.isArray(list) ? list : [])];
   loadTranslations(saved?.translations);
@@ -840,6 +842,9 @@ function issuesOf(b) {
 
 function renderStore() {
   const b = builtStore(), s = storeFor(null);
+  if (state.projectLinks) $("storeAbout").innerHTML = `Where the install button goes. These are the links of the project <b>${esc(state.projectLinks)}</b>: `
+    + "every build in it uses them, new ones too, so they're set once. A change here changes them for all its builds. "
+    + "Left empty, the link from PlaySpell Settings stays.";
   $("storeIos").placeholder = b.ios || "https://apps.apple.com/app/id…";
   $("storeAndroid").placeholder = b.android || "https://play.google.com/store/apps/details?id=…";
   // what the files open on each platform: its own link, else the other platform's

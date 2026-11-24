@@ -7,6 +7,9 @@
   var id = new URLSearchParams(location.search).get("b") || "";
   var realFetch = window.fetch.bind(window);
   var files = new Map();
+  // the store links as the page loaded them, to tell a change typed here from a tab that still holds older ones
+  var loadedStore = null;
+  var linksOf = function (s) { return (s && s.ios || "") + " " + (s && s.android || ""); };
   var gate = document.createElement("div");
   gate.id = "psGate";
   gate.style.cssText = "position:fixed;inset:0;z-index:1000;background:var(--bg,#f5f6f8);overflow:auto";
@@ -33,8 +36,16 @@
       return answer({ playspell: "portal", live: true, name: info.name, project: info.project, playUrl: info.playUrl, canRename: info.canRename });
     }
     if (url === "api/variations") {
-      if (method === "GET") return answer((await PS.call("variations_get", { id: id }, { retry: true })).values);
-      return answer({ saved: (await PS.call("variations_put", { id: id, data: body })).saved });
+      if (method === "GET") {
+        var values = (await PS.call("variations_get", { id: id }, { retry: true })).values;
+        loadedStore = linksOf(values && values.store);
+        return answer(values);
+      }
+      // store links are the project's: they change only when typed here, not because this tab still holds older ones
+      var sentStore = linksOf(body.store), edited = sentStore !== loadedStore;
+      var r = await PS.call("variations_put", { id: id, data: body, storeEdited: edited });
+      loadedStore = sentStore;
+      return answer({ saved: r.saved });
     }
     if (url === "api/shares") {
       if (method === "GET") return answer(await PS.call("shares_list", { id: id }, { retry: true }));
