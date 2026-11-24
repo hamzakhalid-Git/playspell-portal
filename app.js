@@ -261,7 +261,8 @@
 
   function conceptsPage(main, r, name, team) {
     var teams = r.teams || {}, mine = r.builds.filter(function (b) { return same(b.project, name) && (team == null || (b.team || "") === team); });
-    var crumbs = '<nav class="crumbs" aria-label="Where you are"><a href="#builds">Builds</a><span aria-hidden="true">›</span><b>' + projectName(mine.length ? mine[0].project : name) + "</b></nav>";
+    var crumbs = '<div class="crumbrow"><a class="back" href="#builds" title="Back to all projects" aria-label="Back to all projects">' + icon('<path d="M14.5 6l-6 6 6 6"/>') + "</a>" +
+      '<nav class="crumbs" aria-label="Where you are"><a href="#builds">Builds</a><span aria-hidden="true">›</span><b>' + projectName(mine.length ? mine[0].project : name) + "</b></nav></div>";
     if (!mine.length) {
       main.innerHTML = crumbs + '<div class="card"><p>This project has no builds here any more. They may have been deleted or moved to another team.</p><a class="button" href="#builds">All projects</a></div>';
       return;

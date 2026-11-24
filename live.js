@@ -33,7 +33,8 @@
     if (url === "api/ping") {
       var info = await PS.call("build_info", { id: id }, { retry: true });
       document.querySelectorAll("#allBuilds").forEach(function (a) { a.href = "./"; });
-      return answer({ playspell: "portal", live: true, name: info.name, project: info.project, playUrl: info.playUrl, canRename: info.canRename });
+      // home: where the portal's own pages are, for the page's way back to its project
+      return answer({ playspell: "portal", live: true, home: "./", name: info.name, project: info.project, playUrl: info.playUrl, canRename: info.canRename });
     }
     if (url === "api/variations") {
       if (method === "GET") {
