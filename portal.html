@@ -488,10 +488,15 @@ const fieldId = f => f.path || f.key;
 const variation = () => state.variations[state.current];
 const isDefault = () => state.current === 0;
 
-// The build's field keys → values for a variation (what the runtime reads from __PLAYSPELL_FIELDS__).
+// The build's field keys → values for a variation (what the runtime reads from __PLAYSPELL_FIELDS__): its own, else
+// the ones changed on "Unity values", which every variation starts from.
 function overrides(v) {
-  const out = {};
-  for (const f of state.fields) if (fieldId(f) in v.values) out[f.key] = v.values[fieldId(f)];
+  const out = {}, base = state.variations[0].values;
+  for (const f of state.fields) {
+    const id = fieldId(f);
+    if (id in v.values) out[f.key] = v.values[id];
+    else if (id in base) out[f.key] = base[id];
+  }
   return out;
 }
 const stale = v => Object.keys(v.values).filter(id => !state.fields.some(f => fieldId(f) === id));
@@ -510,7 +515,9 @@ async function loadVariations() {
   // the online portal keeps store links per project: every build in it uses them
   state.projectLinks = typeof saved?.projectLinks === "string" ? saved.projectLinks : "";
   state.savedPicks = saved?.picks || null;
-  state.variations = [{ name: "Unity values", language: "", values: {} }, ...(Array.isArray(list) ? list : [])];
+  // "Unity values" can be changed here too (base): the build's own starting values, under every variation
+  const base = saved?.base?.values;
+  state.variations = [{ name: "Unity values", language: "", values: base && typeof base === "object" && !Array.isArray(base) ? { ...base } : {} }, ...(Array.isArray(list) ? list : [])];
   loadTranslations(saved?.translations);
 }
 
@@ -519,7 +526,7 @@ function saveVariations() {
   clearTimeout(saveTimer);
   $("saveState").textContent = "Saving…";
   saveTimer = setTimeout(async () => {
-    const data = { store: state.store, picks: state.savedPicks, variations: state.variations.slice(1), translations: state.translations };
+    const data = { store: state.store, picks: state.savedPicks, base: { values: state.variations[0].values }, variations: state.variations.slice(1), translations: state.translations };
     if (state.api) {
       try {
         const r = await fetch("api/variations", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
@@ -545,8 +552,8 @@ const variationLanguage = v => (v.language ? languageName(v.language) : state.tr
 
 function variationMeta(v, i) {
   const language = variationLanguage(v);
-  if (i === 0) return "As set in Unity" + (language ? " · " + language : "");
   const n = Object.keys(v.values).length;
+  if (i === 0) return (n ? `${n} change${n === 1 ? "" : "s"} to Unity's` : "As set in Unity") + (language ? " · " + language : "");
   return `${n} change${n === 1 ? "" : "s"}${language ? " · " + language : ""}${ownLinks(v) ? " · own store links" : ""}`;
 }
 
@@ -912,17 +919,18 @@ function renderVariations() {
   $("variationPick").innerHTML = state.variations.map((v, i) => `<option value="${i}">${esc(v.name)}</option>`).join("");
   $("variationPick").value = String(state.current);
   $("countVariations").textContent = state.variations.length > 1 ? String(state.variations.length - 1) : "";
-  for (const id of ["rename", "delete", "resetFields"]) $(id).disabled = isDefault();
+  for (const id of ["rename", "delete"]) $(id).disabled = isDefault();
+  $("resetFields").disabled = !Object.keys(variation().values).length;
   $("language").innerHTML = allLanguages().map(([c, n]) => `<option value="${esc(c)}">${esc(n)}</option>`).join("");
   $("language").value = variation().language || "";
   $("language").disabled = isDefault();
   $("fieldsTitle").textContent = variation().name;
   const old = stale(variation());
   $("variationHint").className = "notice" + (old.length ? " warn" : "");
-  $("variationHint").innerHTML = isDefault()
-    ? "These are the values set in Unity. Make a variation (New) to change them for an export."
-    : old.length ? `${old.length} saved value(s) match no field of this build (renamed or removed). <button class="small" id="dropStale">Remove them</button>` : "";
-  if (old.length && !isDefault()) $("dropStale").onclick = () => { for (const id of old) delete variation().values[id]; saveVariations(); renderVariations(); };
+  $("variationHint").innerHTML = old.length ? `${old.length} saved value(s) match no field of this build (renamed or removed). <button class="small" id="dropStale">Remove them</button>`
+    : isDefault() ? "The values set in Unity. Change one here and it's kept for this build: Preview, exports, share links and every variation start from it. A new publish from Unity keeps your changes on top. <b>Back to Unity's values</b> puts Unity's back."
+    : "";
+  if (old.length) $("dropStale").onclick = () => { for (const id of old) delete variation().values[id]; saveVariations(); renderVariations(); };
   renderVariationStore();
   renderFields();
 }
@@ -942,7 +950,8 @@ $("newVariation").onclick = () => {
 };
 $("duplicate").onclick = () => {
   const v = variation();
-  state.variations.push({ name: uniqueName(isDefault() ? "Variation" : v.name + " copy"), language: v.language || "", values: structuredClone(v.values), ...(v.store ? { store: { ...v.store } } : {}) });
+  // a copy of Unity values starts empty: it takes them, changes included, as every variation does
+  state.variations.push({ name: uniqueName(isDefault() ? "Variation" : v.name + " copy"), language: v.language || "", values: isDefault() ? {} : structuredClone(v.values), ...(v.store ? { store: { ...v.store } } : {}) });
   saveVariations(); selectVariation(state.variations.length - 1);
 };
 $("rename").onclick = () => {
@@ -958,7 +967,8 @@ $("delete").onclick = () => {
 };
 $("language").onchange = () => { variation().language = $("language").value; saveVariations(); renderVariations(); };
 $("resetFields").onclick = () => {
-  if (isDefault() || !Object.keys(variation().values).length) return;
+  if (!Object.keys(variation().values).length) return;
+  if (isDefault() && !confirm("Put back the values set in Unity? Your changes to them go, for Preview, exports, share links and the variations that don't set those fields themselves.")) return;
   variation().values = {};
   saveVariations(); renderVariations(); playgroundPreview();
 };
@@ -984,9 +994,7 @@ function renderFields() {
     const row = document.createElement("div");
     row.className = "row" + (fieldId(f) in variation().values ? " changed" : "");
     row.innerHTML = `<label>${esc(f.title)}<small>${esc(f.object)}</small></label>`;
-    const el = input(f, row);
-    for (const x of el.matches("input, select") ? [el] : el.querySelectorAll("input, select")) x.disabled = isDefault();
-    row.appendChild(el);
+    row.appendChild(input(f, row));
     box.appendChild(row);
   }
 }
@@ -994,11 +1002,11 @@ function renderFields() {
 // Inputs per Unity field type; values are kept in the exported JSON form.
 const TUPLES = ["$v2", "$v3", "$v4", "$v2i", "$v3i", "$rect"];
 function input(f, row) {
-  const values = variation().values, id = fieldId(f);
-  const cur = id in values ? values[id] : f.value;
+  const values = variation().values, base = state.variations[0].values, id = fieldId(f);
+  const cur = id in values ? values[id] : id in base ? base[id] : f.value;
   const set = v => {
     values[id] = v;
-    if (!row.classList.contains("changed")) { row.classList.add("changed"); renderVariationList(); }
+    if (!row.classList.contains("changed")) { row.classList.add("changed"); renderVariationList(); $("resetFields").disabled = false; }
     saveVariations();
   };
   let el;
