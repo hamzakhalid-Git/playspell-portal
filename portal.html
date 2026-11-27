@@ -736,7 +736,7 @@ $("langCsvOut").onclick = e => {
   }
   const t = state.translations, rows = [["Text", ...t.languages], ...languageRows().map(text => [text, ...t.languages.map(c => t.texts[text]?.[c] ?? "")])];
   const csv = String.fromCharCode(0xfeff) + rows.map(r => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
-  const name = (state.report?.settings.title || "playable").replace(/[^A-Za-z0-9_-]+/g, "_");
+  const name = (state.conceptName || state.report?.settings.title || "playable").replace(/[^A-Za-z0-9_-]+/g, "_");
   save(new Blob([csv], { type: "text/csv;charset=utf-8" }), `${name}-languages.csv`);
 };
 
@@ -1096,8 +1096,17 @@ function trackingFor(network) {
 // On the online portal a download's name carries its concept (…_ps<id>.html), and its variation when it isn't Unity's
 // values, so an ad network's report on the creative it becomes can be put back on the concept (Insights). Mintegral's
 // keeps its name, as its ZIP, folder and page must all share one, and so does Unity Ads', which must be index.html.
+// It also starts with the concept's name as set on the portal, not the Title set in Unity (Unity Ads' stays
+// index.html); Mintegral's name takes only letters, numbers and underscores.
+const titleOfFiles = () => state.conceptName || state.report.settings.title;
+function conceptStem(network) {
+  if (!state.conceptName) return "";
+  return state.conceptName.replace(network === "mintegral" ? /[^A-Za-z0-9_]+/g : /[^A-Za-z0-9_-]+/g, "_").replace(/^[_-]+|[_-]+$/g, "").slice(0, 60);
+}
 function downloadName(build, v) {
-  const name = build.file.split("/").pop(), concept = new URLSearchParams(location.search).get("b") || "";
+  let name = build.file.split("/").pop();
+  const concept = new URLSearchParams(location.search).get("b") || "", ext = name.slice(name.lastIndexOf(".")), stem = conceptStem(build.network);
+  if (stem && name.endsWith(`_${build.network}${ext}`)) name = `${stem}_${build.network}${ext}`;
   if (!/^[A-Za-z0-9]{6,40}$/.test(concept) || build.network === "mintegral" || build.network === "unity") return name;
   const dot = name.lastIndexOf("."), part = v && v.name && v !== state.variations[0] ? "_" + slug(v.name) : "";
   return name.slice(0, dot) + part + "_ps" + concept + name.slice(dot);
@@ -1105,14 +1114,16 @@ function downloadName(build, v) {
 
 async function fileFor(build, v) {
   const name = downloadName(build, v), links = storeFor(v), built = builtStore(), track = await trackingFor(build.network);
+  // Mintegral's folder and page inside its ZIP carry the ZIP's name, so a renamed one is packed again
+  const folder = build.network === "mintegral" && build.zip && name !== build.file.split("/").pop() ? name.replace(/\.zip$/i, "") : "";
   // the build's own file when nothing would change in it
   const sameTexts = JSON.stringify(translationTable(v.language || "")) === JSON.stringify(state.report.languages?.table ?? null);
-  if (!track && !Object.keys(overrides(v)).length && !v.language && sameTexts && links.ios === built.ios && links.android === built.android)
+  if (!folder && !track && !Object.keys(overrides(v)).length && !v.language && sameTexts && links.ios === built.ios && links.android === built.android)
     return { name, blob: await (await fetch(build.file, { cache: "no-store" })).blob() };
   const html = await htmlFor(build, v, { track });
   if (!build.zip) return { name, blob: new Blob([html], { type: "text/html" }) };
   const extra = await Promise.all((build.zip.extra || []).map(async p => ({ path: p.split("/").pop(), data: new Uint8Array(await (await fetch(p)).arrayBuffer()) })));
-  return { name, blob: await zip([{ path: build.zip.entry, data: html }, ...extra], { deflate: true }) };
+  return { name, blob: await zip([{ path: folder ? `${folder}/${folder}.html` : build.zip.entry, data: html }, ...extra], { deflate: true }) };
 }
 
 const limitOf = b => b.limit || ({ facebook: 2 }[b.network] || 5) * 1048576;
@@ -1315,7 +1326,7 @@ function exportSummary() {
   const vs = picked.variations.filter(Boolean).length, ns = state.report.builds.filter((b, i) => picked.networks[i]);
   const bytes = ns.reduce((n, b) => n + b.size, 0) * vs;
   $("exportSummary").textContent = vs && ns.length ? `${vs * ns.length} file(s), about ${kb(bytes)}` : "Choose at least one variation and one network";
-  $("exportDetail").textContent = vs && ns.length ? `${vs} variation(s) × ${ns.length} network(s) → ${slug(state.report.settings.title)}_playables.zip` : "";
+  $("exportDetail").textContent = vs && ns.length ? `${vs} variation(s) × ${ns.length} network(s) → ${slug(titleOfFiles())}_playables.zip` : "";
   $("exportGo").disabled = !vs || !ns.length;
 }
 
@@ -1332,7 +1343,7 @@ $("exportGo").onclick = async () => {
       $("exportProgress").style.width = (files.length / total * 100).toFixed(1) + "%";
       $("exportDetail").textContent = `${files.length} of ${total}: ${v.name} · ${b.label}`;
     }
-    const out = slug(state.report.settings.title) + "_playables.zip";
+    const out = slug(titleOfFiles()) + "_playables.zip";
     save(await zip(files), out);
     $("exportSummary").textContent = `Saved ${out}`;
     $("exportDetail").textContent = `${files.length} file(s), ready to upload.`;
@@ -1367,6 +1378,8 @@ async function startLive() {
     $("shareCard").style.display = "";
     $("saveState").textContent = savedText();
     $("title").textContent = ping.name;
+    // downloads are named after the concept as it's called here
+    state.conceptName = String(ping.name || "");
     if (ping.canRename) {
       const a = document.createElement("a");
       a.href = "rename?back=portal";
@@ -1491,7 +1504,7 @@ $("shareMake").onclick = async () => {
 // ---------------------------------------------------------------- check files
 
 // What each network's own pages ask of the file (links in docs/network-testing.md). kind: the ad container.
-const STEM = () => state.report.builds.find(b => b.network === "mintegral")?.file.split("/").pop().replace(/\.zip$/, "") ?? "";
+// files(stem): what a ZIP holds, given the ZIP's name without .zip
 const SPEC = {
   applovin: { kind: "mraid", cta: "mraid.open", html: /\.html$/, has: ['<script src="mraid.js"><\/script>'] },
   unity: { kind: "mraid", cta: "mraid.open", html: /^index\.html$/, not: ["mraid.js"] },
@@ -1499,7 +1512,7 @@ const SPEC = {
   facebook: { kind: "plain", api: "FbPlayableAd.onCTAClick", html: /\.html$/, not: ["mraid.js"], max: 2 },
   moloco: { kind: "plain", api: "FbPlayableAd.onCTAClick", html: /\.html?$/, not: ["mraid.js"] },
   google: { kind: "plain", api: "ExitApi.exit", files: () => ["index.html"], not: ["mraid.js"], has: ['<meta name="ad.orientation"', '<script src="https://tpc.googlesyndication.com/pagead/gadgets/html5/api/exitapi.js"><\/script>'], head: ["exitapi.js"] },
-  mintegral: { kind: "mintegral", cta: "install", files: () => [STEM() + "/" + STEM() + ".html"], not: ["mraid.js"], end: "gameEnd", name: /^[A-Za-z0-9_]+$/ },
+  mintegral: { kind: "mintegral", cta: "install", files: stem => [stem + "/" + stem + ".html"], not: ["mraid.js"], end: "gameEnd", name: /^[A-Za-z0-9_]+$/ },
   tiktok: { kind: "plain", api: "openAppStore", files: () => ["index.html", "config.json"], not: ["mraid.js"], has: ['"playable_orientation"', "playable-sdk.js"], body: ["playable-sdk.js"] },
   vungle: { kind: "vungle", cta: "download", files: () => ["index.html"], not: ["mraid.js"], has: ["parent.postMessage('download','*')", "parent.postMessage('complete','*')"], end: "complete" },
   adcolony: { kind: "mraid", cta: "mraid.open", html: /\.html$/, has: ['<script src="mraid.js"><\/script>'] },
@@ -1582,14 +1595,14 @@ const NO_OUTSIDE = `<meta http-equiv="Content-Security-Policy" content="default-
 
 async function checkFile(b, v) {
   const spec = SPEC[b.network], problems = [], warnings = [];
-  const { name, blob } = await fileFor(b, v);
+  const { name, blob } = await fileFor(b, v), stem = name.replace(/\.zip$/i, "");
   const MB = 1048576;
   let html, files = null;
   if (b.zip) {
     files = await readZip(blob);
-    const want = spec.files().slice().sort(), got = Object.keys(files).sort();
+    const want = spec.files(stem).slice().sort(), got = Object.keys(files).sort();
     if (want.join() !== got.join()) problems.push(`ZIP should hold ${want.join(", ")}; it holds ${got.join(", ")}`);
-    html = files[spec.files()[0]] ?? Object.entries(files).find(([k]) => k.endsWith(".html"))?.[1] ?? "";
+    html = files[spec.files(stem)[0]] ?? Object.entries(files).find(([k]) => k.endsWith(".html"))?.[1] ?? "";
   } else {
     html = await blob.text();
     if (!spec.html.test(name)) problems.push(`File is named ${name}; ${b.label} wants ${spec.html}`);
@@ -1600,7 +1613,7 @@ async function checkFile(b, v) {
   // the page without the packed game, then the config beside it
   const page = html.replace(/<script id="playspell-payload"[\s\S]*?<\/script>/, "");
   const text = page + (files?.["config.json"] ?? "");
-  if (b.zip && spec.files().includes("config.json")) { try { JSON.parse(files["config.json"]); } catch { problems.push("config.json isn't valid JSON"); } }
+  if (b.zip && spec.files(stem).includes("config.json")) { try { JSON.parse(files["config.json"]); } catch { problems.push("config.json isn't valid JSON"); } }
   for (const need of spec.has || []) if (!text.includes(need)) problems.push("Missing " + need);
   for (const ban of spec.not || []) if (page.includes(ban)) problems.push("Must not contain " + ban);
   const headEnd = page.search(/<\/head>/i);
